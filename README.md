@@ -10,7 +10,8 @@ LoRADS is an enhanced first-order method solver for low rank Semi-definite progr
 
 LoRADS focus on the following problem:
 $$
-\min_{\mathcal{A}(X)=\mathbf{b},X\in \mathbb{S}_+^{n}}C\bullet X.
+\min_{\mathcal{A} \mathbf{X} = \mathbf{b}, \mathbf{X}\in \mathbb{S}_+^n} \left\langle \mathbf{C}, \mathbf{X} \right\rangle  \\
+  \\
 $$
 
 ##### Features of the problem:
