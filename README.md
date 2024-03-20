@@ -24,7 +24,7 @@ $$
 
 #### Current release:
 
-LoRADS is now under active development and release a pre-built binary (v1.0.0) which reads SDPA (.dat-s) format files, solves the SDP problem. Users testing solvers in Linux can download the binary from
+LoRADS is now under active development and release a pre-built binary (v1.0.0) which reads SDPA (.dat-s) format files, solves the SDP problems. Users testing solvers in Linux can download the binary from
 
 
 
@@ -34,7 +34,7 @@ LoRADS is now under active development and release a pre-built binary (v1.0.0) w
 
 #### Developers
 
-HDSDP is developed by 
+LoRADS is developed by 
 
 - Zhenwei Lin: zhenweilin@163.sufe.edu.cn
 - Qiushi Han: joshhan2@illinois.edu
