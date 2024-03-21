@@ -10,8 +10,7 @@ LoRADS is an enhanced first-order method solver for low rank Semi-definite progr
 
 LoRADS focus on the following problem:
 $$
-\min_{\mathcal{A} \mathbf{X} = \mathbf{b}, \mathbf{X}\in \mathbb{S}_+^n} \left\langle \mathbf{C}, \mathbf{X} \right\rangle  \\
-  \\
+\min_{\mathcal{A} \mathbf{X} = \mathbf{b}, \mathbf{X}\in \mathbb{S}_+^n} \left\langle \mathbf{C}, \mathbf{X} \right\rangle
 $$
 
 ##### Features of the problem:
@@ -29,6 +28,25 @@ LoRADS is now under active development and release a pre-built binary (v1.0.0) w
 
 
 #### Getting started:
+
+After downloading the binary form the release site, you could execute
+
+```sh
+unzip LoRADS_v_1_0_0-alpha.zip
+chmod +x LoRADS_v_1_0_0-alpha
+```
+
+Now,  by running
+
+```sh
+LoRADS_v_1_0_0-alpha SDPAFILE.dat-s
+```
+
+we can solve SDPs represented in standard SDPA format.
+
+
+
+If everything goes well, we would see logs like below.
 
 
 
