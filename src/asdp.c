@@ -66,45 +66,55 @@ static void ASDPIGetStatistics(asdp *ASolver)
     return;
 }
 
-extern void detectMaxCutProb(asdp *ASolver, int *BlkDims, int *maxCut){
+extern void detectMaxCutProb(asdp *ASolver, int *BlkDims, int *maxCut)
+{
     maxCut[0] = -1;
     int stat = 0;
     asdp_cone *cone = ASolver->ACones[0];
-    
-    if (cone->cone == ASDP_CONETYPE_DENSE_SDP){
+
+    if (cone->cone == ASDP_CONETYPE_DENSE_SDP)
+    {
         asdp_cone_sdp_dense *denseCone = (asdp_cone_sdp_dense *)cone->coneData;
-//        if (ASolver->nRows != denseCone->nRow){
-//            return;
-//        }
-        for (int iRow = 0; iRow < denseCone->nRow; ++iRow){
+        //        if (ASolver->nRows != denseCone->nRow){
+        //            return;
+        //        }
+        for (int iRow = 0; iRow < denseCone->nRow; ++iRow)
+        {
             sdp_coeff *sdpCoeff = denseCone->sdpRow[iRow];
-            if (sdpCoeff->dataType == SDP_COEFF_SPARSE){
+            if (sdpCoeff->dataType == SDP_COEFF_SPARSE)
+            {
                 sdp_coeff_sparse *sdpSparse = sdpCoeff->dataMat;
-                if (sdpSparse->nTriMatElem == 1){
-                    if (sdpSparse->triMatRow[0] == sdpSparse->triMatCol[0]){
+                if (sdpSparse->nTriMatElem == 1)
+                {
+                    if (sdpSparse->triMatRow[0] == sdpSparse->triMatCol[0])
+                    {
                         stat += 1;
                     }
                 }
             }
         }
     }
-    if (stat >= ASolver->nRows - 1){
+    if (stat >= ASolver->nRows - 1)
+    {
         maxCut[0] = 1;
     }
 }
 
-extern void detectSparsitySDPCoeff(asdp *ASolver){
+extern void detectSparsitySDPCoeff(asdp *ASolver)
+{
     ASDP_INIT(ASolver->sparsitySDPCoeff, double, ASolver->nCones * ASolver->nRows);
     ASolver->nnzSDPCoeffSum = 0;
     ASolver->SDPCoeffSum = 0;
-    for (int iCone = 0; iCone < ASolver->nCones; ++iCone){
+    for (int iCone = 0; iCone < ASolver->nCones; ++iCone)
+    {
         asdp_cone *ACone = ASolver->ACones[iCone];
         ACone->nnzStatCoeff(ACone->coneData, &ASolver->sparsitySDPCoeff[iCone * ASolver->nRows], &ASolver->nnzSDPCoeffSum, &ASolver->SDPCoeffSum);
     }
-    ASolver->overallSparse = (double)ASolver->nnzSDPCoeffSum / (double) ASolver->SDPCoeffSum / (double) ASolver->nRows;
+    ASolver->overallSparse = (double)ASolver->nnzSDPCoeffSum / (double)ASolver->SDPCoeffSum / (double)ASolver->nRows;
 }
 
-extern void freeDetectSparsitySDPCoeff(asdp *ASolver){
+extern void freeDetectSparsitySDPCoeff(asdp *ASolver)
+{
     ASDP_FREE(ASolver->sparsitySDPCoeff);
 }
 
@@ -278,22 +288,22 @@ extern void BMWarmStart2ADMM(asdp *ASolver, double *R, double *dualVar, double r
     ASolver->rho = rho;
 }
 
-//extern asdp_retcode endBMwarmStart(asdp *ASolver)
+// extern asdp_retcode endBMwarmStart(asdp *ASolver)
 //{
-//    asdp_retcode retcode = ASDP_RETCODE_OK;
-//    ASDPCalObj(ASolver, FLAG_V);
-//    ASDPCalDualObj(ASolver);
-//    ASDPInitConstrValAll(ASolver, ASolver->uLp, ASolver->vLp, ASolver->U, ASolver->V);
-//    ASDPInitConstrValSum(ASolver);
-//    ASDPUpdateDimacError(ASolver);
-//    asdp_printf("**Complete ALM+BM warm start\n");
-//    asdp_printf("objVal:%5.5e dualObj:%5.5e ConstrVio:%5.5e Assym:%5.5e DualInfe:%5.5e PDGap:%5.5e rho:%3.2f\n", ASolver->pObjVal, ASolver->dObjVal, ASolver->dimacError[ASDP_DIMAC_ERROR_CONSTRVIO], 0.0, ASolver->dimacError[ASDP_DIMAC_ERROR_DUALFEASIBLE], ASolver->dimacError[ASDP_DIMAC_ERROR_PDGAP], ASolver->rho);
-//    ASDPCheckDimacErr(ASolver);
-//    ASDP_STATUS_CHECK(ASDPCheckSolverStatus(ASolver));
+//     asdp_retcode retcode = ASDP_RETCODE_OK;
+//     ASDPCalObj(ASolver, FLAG_V);
+//     ASDPCalDualObj(ASolver);
+//     ASDPInitConstrValAll(ASolver, ASolver->uLp, ASolver->vLp, ASolver->U, ASolver->V);
+//     ASDPInitConstrValSum(ASolver);
+//     ASDPUpdateDimacError(ASolver);
+//     asdp_printf("**Complete ALM+BM warm start\n");
+//     asdp_printf("objVal:%5.5e dualObj:%5.5e ConstrVio:%5.5e Assym:%5.5e DualInfe:%5.5e PDGap:%5.5e rho:%3.2f\n", ASolver->pObjVal, ASolver->dObjVal, ASolver->dimacError[ASDP_DIMAC_ERROR_CONSTRVIO], 0.0, ASolver->dimacError[ASDP_DIMAC_ERROR_DUALFEASIBLE], ASolver->dimacError[ASDP_DIMAC_ERROR_PDGAP], ASolver->rho);
+//     ASDPCheckDimacErr(ASolver);
+//     ASDP_STATUS_CHECK(ASDPCheckSolverStatus(ASolver));
 //
-//exit_cleanup:
-//    return retcode;
-//}
+// exit_cleanup:
+//     return retcode;
+// }
 
 extern void ASDP_SCALE(asdp *ASolver)
 {
@@ -329,7 +339,7 @@ extern void ASDP_SCALE(asdp *ASolver)
     }
 }
 
-extern asdp_retcode ASDP_BMOptimize(asdp *ASolver, double endBMTol, double endBMTol_pd, double endTauTol, double endBMALSub, double ori_start, int is_rank_max, int *pre_mainiter, int *pre_miniter)
+extern asdp_retcode ASDP_BMOptimize(asdp *ASolver, double endBMTol, double endBMTol_pd, double endTauTol, double endBMALSub, double ori_start, int is_rank_max, int *pre_mainiter, int *pre_miniter, double timeLimit)
 {
     asdp_func *aFunc;
     ASDPInitFuncSet(&aFunc, ASolver->nLpCols);
@@ -393,6 +403,10 @@ extern asdp_retcode ASDP_BMOptimize(asdp *ASolver, double endBMTol, double endBM
             // Solving AL subproblem
             while (rho_creticate_val - rho_certicate_tol > endBMALSub)
             {
+                if (AUtilGetTimeStamp() - ori_start >= timeLimit)
+                {
+                    goto END_BM_WarmStart;
+                }
                 if (localIter % 300 == 0)
                 {
                     clearLBFGS = 0;
@@ -414,10 +428,7 @@ extern asdp_retcode ASDP_BMOptimize(asdp *ASolver, double endBMTol, double endBM
                 {
                     goto END_BM_WarmStart;
                 }
-                // if (AUtilGetTimeStamp() - ori_start >= 1800)
-                // {
-                //     goto END_BM_WarmStart;
-                // }
+
                 double p12[2];
                 aFunc->BMCalq12p12(ASolver, ASolver->rLp, ASolver->uLp, ASolver->R, ASolver->U, ASolver->ARDSum, ASolver->ADDSum, p12);
                 int rootNum = BMLineSearch(ASolver->rho, ASolver->nRows, ASolver->dualVar, p12[0], p12[1], q0, ASolver->ARDSum, ASolver->ADDSum, &tau);
@@ -551,7 +562,7 @@ exit_cleanup:
     return retcode;
 }
 
-extern asdp_retcode ASDPOptimize(asdp *ASolver, int rhoFreq, double rhoFactor, int rhoStrategy, double tau, double gamma, double rhoMin)
+extern asdp_retcode ASDPOptimize(asdp *ASolver, int rhoFreq, double rhoFactor, int rhoStrategy, double tau, double gamma, double rhoMin, double ori_start, double timeLimit)
 {
     asdp_func *aFunc;
     ASDPInitFuncSet(&aFunc, ASolver->nLpCols);
@@ -569,10 +580,18 @@ extern asdp_retcode ASDPOptimize(asdp *ASolver, int rhoFreq, double rhoFactor, i
     double start = AUtilGetTimeStamp();
     int k;
     double rho_0 = ASolver->rho;
+    if (rho_0 >= ASolver->rhoMax)
+    {
+        rho_0 = ASolver->rhoMax * 0.75;
+    }
     double iter_cross = rhoFreq * ASDP_MAX(ceil(log(ASolver->rhoMax / rho_0) / log(rhoFactor)), 1);
     double c = ASDP_MAX((ASolver->rhoMax - rho_0), 0) / log(iter_cross + 1);
     for (k = 0; k < ASolver->maxInter; ++k)
     {
+        if (AUtilGetTimeStamp() - ori_start >= timeLimit)
+        {
+            goto exit_cleanup;
+        }
         aFunc->admmUpdateVar(ASolver);
         // update dual var lambda
         ASDPUpdateDualVar(ASolver);
@@ -580,7 +599,14 @@ extern asdp_retcode ASDPOptimize(asdp *ASolver, int rhoFreq, double rhoFactor, i
         {
             if (k >= iter_cross && rhoStrategy == 1)
             {
-                ASolver->rho = k == 0 ? rho_0 : c * log(k + 1) + rho_0;
+                if (c == 0)
+                {
+                    ASolver->rho = k == 0 ? ASolver->rhoMax : c * log(k + 1) + ASolver->rhoMax;
+                }
+                else
+                {
+                    ASolver->rho = k == 0 ? rho_0 : c * log(k + 1) + rho_0;
+                }
             }
             else
             {
@@ -636,127 +662,15 @@ exit_cleanup:
         ASolver->AStatus = ASDP_MAXITER;
         retcode = ASDP_RETCODE_EXIT;
     }
+    else if (AUtilGetTimeStamp() - ori_start >= timeLimit)
+    {
+        ASolver->AStatus = ASDP_TIMELIMIT;
+        retcode = ASDP_RETCODE_EXIT;
+    }
     ASDP_FREE(aFunc);
     return retcode;
 }
 
-//extern asdp_retcode ASDPDualOptimize(asdp *ASolver)
-//{
-//    asdp_func *aFunc;
-//    ASDPInitFuncSet(&aFunc, ASolver->nLpCols);
-//    asdp_retcode retcode = ASDP_RETCODE_OK;
-//    double pObj = ASolver->pObjVal;
-//    // lambda standard SDP
-//    double *lambdSSDP;
-//    ASDP_INIT(lambdSSDP, double, ASolver->nRows);
-//    ASDP_MEMCHECK(lambdSSDP);
-//    ASDP_MEMCPY(lambdSSDP, ASolver->dualVar, double, ASolver->nRows);
-//
-//    // lambda nonconvex SDP
-//    double *lambdNcvxSDP;
-//    ASDP_INIT(lambdNcvxSDP, double, ASolver->nRows);
-//    ASDP_MEMCHECK(lambdNcvxSDP);
-//    ASDP_MEMCPY(lambdNcvxSDP, ASolver->dualVar, double, ASolver->nRows);
-//
-//    double *lambdMomen;
-//    ASDP_INIT(lambdMomen, double, ASolver->nRows);
-//    ASDP_MEMCHECK(lambdMomen);
-//    ASDP_ZERO(lambdMomen, double, ASolver->nRows);
-//
-//    double *lambdMomen2;
-//    ASDP_INIT(lambdMomen2, double, ASolver->nRows);
-//    ASDP_MEMCHECK(lambdMomen2);
-//    ASDP_ZERO(lambdMomen2, double, ASolver->nRows);
-//
-//    double *lambdMomenHat;
-//    ASDP_INIT(lambdMomenHat, double, ASolver->nRows);
-//    ASDP_MEMCHECK(lambdMomenHat);
-//    ASDP_ZERO(lambdMomenHat, double, ASolver->nRows);
-//
-//    double *lambdMomen2Hat;
-//    ASDP_INIT(lambdMomen2Hat, double, ASolver->nRows);
-//    ASDP_MEMCHECK(lambdMomen2Hat);
-//    ASDP_ZERO(lambdMomen2Hat, double, ASolver->nRows);
-//
-//    double *gradLambda;
-//    ASDP_INIT(gradLambda, double, ASolver->nRows);
-//    ASDP_ZERO(gradLambda, double, ASolver->nRows);
-//
-//    double *gradLambdaTemp;
-//    ASDP_INIT(gradLambdaTemp, double, ASolver->nRows);
-//    ASDP_ZERO(gradLambdaTemp, double, ASolver->nRows);
-//
-//    double tau = 0.1;
-//    double tau2 = 0.1;
-//    double stepSize = 0.0;
-//    int incx = 1;
-//    int endForFlagS = 0;
-//    int endForFlagN = 0;
-//    double pdGapS = 0.0;
-//    double pdGapN = 0.0;
-//    double beta1 = 0.8;
-//    double oneMinusBeta1 = 0.2;
-//    double tol = 1e-8;
-//    double temp = 0.0;
-//    double gradNrm2;
-//    for (int k = 0; k < 10000; ++k)
-//    {
-////        aFunc->dualGradStand(ASolver, lambdSSDP, gradLambda, ASolver->R, ASolver->R);
-//        gradNrm2 = nrm2(&ASolver->nRows, gradLambda, &incx);
-//        if (gradNrm2 < tol)
-//        {
-//            goto endLoop1;
-//        }
-//        stepSize = -1.0 * ASDP_MIN(0.5 / stepSize, tau);
-//        axpy(&ASolver->nRows, &stepSize, gradLambda, &incx, lambdSSDP, &incx);
-//        ASDP_ZERO(gradLambda, double, ASolver->nRows);
-//    }
-//endLoop1:
-//    for (int k = 0; k < 10000; ++k)
-//    {
-//        // RMSProp
-////        aFunc->dualGradNcvx(ASolver, lambdNcvxSDP, gradLambda, ASolver->R, ASolver->R);
-//        ASDP_MEMCPY(gradLambdaTemp, gradLambda, double, ASolver->nRows);
-//        gradNrm2 = nrm2(&ASolver->nRows, gradLambda, &incx);
-//        if (gradNrm2 < tol)
-//        {
-//            goto endLoop;
-//        }
-//        stepSize = -1 * tau2;
-//        if (k % 1000 == 0 && k > 8000)
-//        {
-//            tau2 *= 0.9;
-//        }
-//        axpy(&ASolver->nRows, &stepSize, gradLambdaTemp, &incx, lambdNcvxSDP, &incx);
-//        ASDP_ZERO(gradLambda, double, ASolver->nRows);
-//    }
-//
-//endLoop:
-//    pdGapS = dot(&ASolver->nRows, lambdSSDP, &incx, ASolver->rowRHS, &incx) - ASolver->pObjVal;
-//    pdGapN = dot(&ASolver->nRows, lambdNcvxSDP, &incx, ASolver->rowRHS, &incx) - ASolver->pObjVal;
-//
-//    pdGapS = ASDP_ABS(pdGapS);
-//    pdGapN = ASDP_ABS(pdGapN);
-//
-//    if (pdGapS < pdGapN)
-//    {
-//        ASDP_MEMCPY(ASolver->dualVar, lambdSSDP, double, ASolver->nRows);
-//    }
-//    else
-//    {
-//        ASDP_MEMCPY(ASolver->dualVar, lambdNcvxSDP, double, ASolver->nRows);
-//    }
-//
-//exit_cleanup:
-//    ASDP_FREE(lambdSSDP);
-//    ASDP_FREE(lambdNcvxSDP);
-//    ASDP_FREE(gradLambda);
-//    ASDP_FREE(lambdMomen);
-//    ASDP_FREE(lambdMomen2);
-//    ASDP_FREE(lambdMomenHat);
-//    ASDP_FREE(lambdMomen2Hat);
-//    return retcode;
-//}
 
 extern void ASDPCheckDimacErr(asdp *ASolver)
 {
@@ -791,7 +705,7 @@ extern void ASDPCheckDimacErrBMCriteria(asdp *ASolver)
     double *dErrs = ASolver->dimacError;
     double BMCriter = dErrs[ASDP_DIMAC_ERROR_CONSTRVIO] * (1 + ASolver->bRHSNrm1) / (1 + ASolver->bRHSNrmInf);
     //    asdp_printf("BMCriter: %5.2e \n", BMCriter);
-//    printf("diff gap:%f\n",  ASolver->dimacError[ASDP_ERROR_DIFF_GAP]);
+    //    printf("diff gap:%f\n",  ASolver->dimacError[ASDP_ERROR_DIFF_GAP]);
     if (BMCriter < ASDP_TERMINATION_TOL)
     {
         ASolver->AStatus = ASDP_PRIMAL_OPTIMAL;
@@ -825,38 +739,6 @@ extern asdp_retcode ASDPCheckSolverStatusBM(asdp *ASolver)
     return retcode;
 }
 
-//extern asdp_retcode ASDPCheckSolverStatus(asdp *ASolver)
-//{
-//    asdp_retcode retcode = ASDP_RETCODE_OK;
-//    if (ASolver->AStatus == ASDP_PRIMAL_DUAL_OPTIMAL)
-//    {
-//        // Calculate Full precise dual Infeasibility
-//        double *negLambd = ASolver->negLambd;
-//        ASDP_ZERO(negLambd, double, ASolver->nRows);
-//        int incx = 1;
-//        double minusOne = -1.0;
-//        int flagChol = 0;
-//        axpy(&(ASolver->nRows), &minusOne, ASolver->dualVar, &incx, negLambd, &incx);
-//        ASolver->dimacError[ASDP_DIMAC_ERROR_DUALFEASIBLE] = 0.0;
-//        for (int iCone = 0; iCone < ASolver->nCones; ++iCone)
-//        {
-//            asdp_rk_mat_dense *U = ASolver->U[iCone];
-//            int nRows = U->nRows;
-//
-//            asdp_cone *Cone = ASolver->ACones[iCone];
-//            Cone->sdp_slack_var->zeros(Cone->sdp_slack_var->dataMat);
-//            Cone->addObjCoeff(Cone->coneData, Cone->sdp_slack_var);
-//            Cone->sdpDataWSum(Cone->coneData, negLambd, Cone->sdp_slack_var);
-////            Cone->sdp_slack_var->chol(Cone->sdp_slack_var->dataMat, ASolver->cObjNrm1, &flagChol);
-//        }
-//        if (flagChol == 0)
-//        {
-//            retcode = ASDP_RETCODE_EXIT;
-//        }
-//    }
-//    return retcode;
-//}
-
 extern void ASDPEndProgram(asdp *ASolver)
 {
     asdp_printf("-----------------------------------------------------------------------\n");
@@ -870,7 +752,11 @@ extern void ASDPEndProgram(asdp *ASolver)
     }
     else if (ASolver->AStatus == ASDP_PRIMAL_OPTIMAL)
     {
-        asdp_printf("End Program due to reaching `BM terminate criteria`:\n");
+        asdp_printf("End Program due to reaching `final terminate criteria`:\n");
+    }
+    else if (ASolver->AStatus == ASDP_TIMELIMIT)
+    {
+        asdp_printf("End Program due to reaching `Time limit`\n");
     }
     else if (ASolver->AStatus == ASDP_UNKNOWN)
     {

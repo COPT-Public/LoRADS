@@ -117,16 +117,16 @@ extern "C"
 {
 #endif
 
-    extern asdp_retcode ASDPOptimize(asdp *ASolver, int rhoFreq, double rhoFactor, int rhoStrategy, double tau, double gamma, double rhoMin);
+    extern asdp_retcode ASDPOptimize(asdp *ASolver, int rhoFreq, double rhoFactor, int rhoStrategy, double tau, double gamma, double rhoMin, double ori_start, double timeLimit);
     extern asdp_retcode ASDPDualOptimize(asdp *ASolver);
-    extern asdp_retcode ASDP_BMOptimize(asdp *ASolver, double endBMTol, double endBMTol_pd, double endTauTol, double endBMALSub, double ori_start, int is_rank_max, int *pre_mainiter, int *pre_miniter);
+    extern asdp_retcode ASDP_BMOptimize(asdp *ASolver, double endBMTol, double endBMTol_pd, double endTauTol, double endBMALSub, double ori_start, int is_rank_max, int *pre_mainiter, int *pre_miniter, double timeLimit);
     extern int BMWarmStart(char *filename, double **RPointer, double **dualVarRPointer, double *rhoRPointer);
     extern void ASDP_BMtoADMM(asdp *ASolver, double heuristic);
     extern void BMWarmStart2ADMM(asdp *ASolver, double *R, double *dualVar, double rho);
-//    extern asdp_retcode endBMwarmStart(asdp *ASolver);
+    //    extern asdp_retcode endBMwarmStart(asdp *ASolver);
     extern void ASDPCheckDimacErr(asdp *ASolver);
     extern void ASDPCheckDimacErrBMCriteria(asdp *ASolver);
-//    extern asdp_retcode ASDPCheckSolverStatus(asdp *ASolver);
+    //    extern asdp_retcode ASDPCheckSolverStatus(asdp *ASolver);
     extern asdp_retcode ASDPCheckSolverStatusBM(asdp *ASolver);
     extern void ASDP_SCALE(asdp *ASolver);
     extern void ASDPEndProgram(asdp *ASolver);
