@@ -51,6 +51,12 @@ If everything goes well, we would see logs like below:
 
 ```
 -----------------------------------------------------------
+  L         OOO      RRRR       A      DDDD       SSS
+  L        O   O     R   R     A A     D   D     S
+  L        O   O     RRRR     AAAAA    D   D      SSS
+  L        O   O     R  R     A   A    D   D         S
+  LLLLL     OOO      R   R    A   A    DDDD       SSS
+-----------------------------------------------------------
 Input file name: SDPAFILE.dat-s
 timesLogRank   : 2.00
 phase1Tol      : 1.00e-03
@@ -64,10 +70,6 @@ timeSecLimit   : 10000.00
 -----------------------------------------------------------
 Reading SDPA file in 0.093176 seconds 
 nConstrs = 2964, sdp nBlks = 22, lp Cols = 0
-
-ASDP: software for semi-definite programming 
-
----------------------------------------------
 Pre-solver starts 
   Processing the cones 
   End preprocess 
