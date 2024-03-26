@@ -144,4 +144,4 @@ LoRADS is developed by
 #### Reference
 
 - Han, Qiushi, Chenxi Li, Zhenwei Lin, Caihua Chen, Qi Deng, Dongdong Ge, Huikang Liu, and Yinyu Ye. "A Low-Rank ADMM Splitting Approach for Semidefinite Programming." *arXiv preprint arXiv:2403.09133* (2024).
-- Burer, Samuel, R. Monteiro, and Changhui Choi. "SDPLR 1.03-beta User’s Guide (short version)(2009)." *URL http://sburer. github. io/files/SDPLR-1.03-beta-usrguide. pdf*.
+- Burer, Samuel, R. Monteiro, and Changhui Choi. "SDPLR 1.03-beta User’s Guide (short version)(2009)." *URL http://sburer.github.io/files/SDPLR-1.03-beta-usrguide.pdf*.
