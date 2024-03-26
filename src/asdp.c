@@ -123,8 +123,8 @@ extern asdp_retcode ASDPPreprocess(asdp *ASolver, int *BlkDims)
     asdp_retcode retcode = ASDP_RETCODE_OK;
 
     /* Start optimization */
-    asdp_printf("\nASDP: software for semi-definite programming \n\n");
-    asdp_printf("---------------------------------------------\n");
+//    asdp_printf("\nLoRADS: software for semi-definite programming \n");
+//    asdp_printf("---------------------------------------------\n");
     ASolver->dTimeBegin = AUtilGetTimeStamp();
 
     /* Process conic data */
