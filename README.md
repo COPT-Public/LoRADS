@@ -2,7 +2,7 @@
 
 #### A Low Rank ADMM Splitting Approach for Semidefinite Programming
 
-LoRADS is an enhanced first-order method solver for low rank Semi-definite programming problems (SDPs). LoRADS is written in ANSI C and is maintained by Cardinal Operations COPT development team. More features are still under active development.
+LoRADS is an enhanced first-order method solver for low rank Semi-definite programming problems (SDPs). LoRADS is written in ANSI C and is maintained by Cardinal Operations COPT development team. More features are still under active development. For more details, please see [the paper](https://arxiv.org/abs/2403.09133).
 
 
 
