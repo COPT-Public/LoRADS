@@ -108,7 +108,7 @@ extern void dger( const int *m, const int *n, const double *alpha,
 #endif
 
 /* Full dense operations */
-extern void fds_symv_( int n, double alpha, double *A, double *x, double beta, double *y ) {
+void fds_symv( int n, double alpha, double *A, double *x, double beta, double *y ) {
     // symmetry matrix multiplication
     // y = alpha * A * x + beta * y
     // where A is a symmetric matrix in dense format
@@ -121,7 +121,7 @@ extern void fds_symv_( int n, double alpha, double *A, double *x, double beta, d
 #else
     dsymv(&ACharConstantUploLow, &n, &alpha, A, &n, x, &AIntConstantOne, &beta, y, &AIntConstantOne);
 #endif
-    
+
     return;
 }
 
@@ -135,20 +135,18 @@ extern void fds_symv_L(int n, double alpha, double *A, double *x, double beta, d
 }
 
 
-static void reconstrcutSymmetricMatrix(sdp_coeff *slackVar, double *symmetricMatrix, int n){
+extern void reconstructSymmetricMatrix(sdp_coeff *slackVar, double *symmetricMatrix, int n){
     if (slackVar->dataType == SDP_COEFF_DENSE){
         sdp_coeff_dense *slackVarDense = (sdp_coeff_dense *)slackVar->dataMat;
         double *lowerTriangle = slackVarDense->dsMatElem;
-        int row = 0;
-        int col = 0;
-        for (int idx = 0; idx < n*(n+1)/2; ++idx){
-            symmetricMatrix[col * n + row] = lowerTriangle[idx];
-            symmetricMatrix[row * n + col] = lowerTriangle[idx];
-            if (row == n - 1){
-                col++;
-                row = col;
-            }else{
-                row++;
+        int i = 0;
+        for (int col = 0; col < n; ++col) {
+            i += col;
+            symmetricMatrix[i] = lowerTriangle[i];
+            ++i;
+            for (int row = col +1; row < n; ++row) {
+                symmetricMatrix[n*row + col] = symmetricMatrix[i] = lowerTriangle[i];
+                ++i;
             }
         }
     }else if (slackVar->dataType == SDP_COEFF_SPARSE){
@@ -167,10 +165,10 @@ static void reconstrcutSymmetricMatrix(sdp_coeff *slackVar, double *symmetricMat
 extern void fds_syev_Min_eig(sdp_coeff *slackVar, double *minEig){
     int n = slackVar->nSDPCol;
     double *completeSymMatrix;
-    
+
     ASDP_INIT(completeSymMatrix, double, n * n);
-    reconstrcutSymmetricMatrix(slackVar, completeSymMatrix, n);
-    
+    reconstructSymmetricMatrix(slackVar, completeSymMatrix, n);
+
     // need to check
     int retcode = ASDP_RETCODE_OK;
     char jobz = 'N'; // eigenvalues only
@@ -188,13 +186,13 @@ extern void fds_syev_Min_eig(sdp_coeff *slackVar, double *minEig){
     ASDP_INIT(z, double, n * n);
     int *isuppz;
     ASDP_INIT(isuppz, int, 2 * n);
-    
+
 
     int lwork = -1;
     int liwork = -1;
     double work_query;
     int iwork_query;
-    
+
 #ifdef UNDER_BLAS
     dsyevr_(&jobz, &range, &uplo, &n, completeSymMatrix, &lda,
            &AblConstantZero, &AblConstantZero,
@@ -206,13 +204,13 @@ extern void fds_syev_Min_eig(sdp_coeff *slackVar, double *minEig){
            &il, &iu, &abstol, &m, w, z,
            &ldz, isuppz, &work_query, &lwork, &iwork_query, &liwork, &info);
 #endif
-    
+
     lwork = (int)work_query;
     double *work = (double*)malloc(sizeof(double) * lwork);
 
     liwork = iwork_query;
     int *iwork = (int*)malloc(sizeof(int) * liwork);
-    
+
 #ifdef UNDER_BLAS
     dsyevr_(&jobz, &range, &uplo, &n, completeSymMatrix, &lda,
            &AblConstantZero, &AblConstantZero,
@@ -225,7 +223,7 @@ extern void fds_syev_Min_eig(sdp_coeff *slackVar, double *minEig){
            &ldz, isuppz, work, &lwork, iwork, &liwork, &info);
 #endif
 
-    
+
     if ( info != 0 ) {
         asdp_printf("info:%d", info);
         ASDP_ERROR_TRACE;
@@ -245,9 +243,9 @@ extern void fds_syev_Min_eig(sdp_coeff *slackVar, double *minEig){
 
 extern int fds_syev( int n, double *U, double *d, double *Y,
                       double *work, int *iwork, int lwork, int liwork ) {
-    
+
     int retcode = ASDP_RETCODE_OK;
-    
+
     char jobz = 'V', range = 'I', uplo = ACharConstantUploUp;
     int isuppz[4] = {0};
     int il = n - 1, iu = n;
@@ -266,11 +264,11 @@ extern int fds_syev( int n, double *U, double *d, double *Y,
            &il, &iu, &AblConstantZero, &m, d, Y,
            &n, isuppz, work, &lwork, iwork, &liwork, &info);
 #endif
-    
+
     if ( info != 0 ) {
         retcode = ASDP_RETCODE_FAILED;
     }
-    
+
     return retcode;
 }
 
@@ -300,7 +298,7 @@ extern void fds_gemv( int m, int n, double *M, double *v, double *y ) {
     dgemv(&ACharConstantNoTrans, &m, &n, &AblConstantOne, M, &m,
           v, &AIntConstantOne, &AblConstantZero, y, &AIntConstantOne);
 #endif
-    
+
     return;
 }
 
@@ -326,7 +324,7 @@ extern void fds_gemvTran( int m, int n, double *M, double *v, double *y ) {
     dgemv(&ACharConstantTrans, &m, &n, &AblConstantOne, M, &m,
           v, &AIntConstantOne, &AblConstantZero, y, &AIntConstantOne);
 #endif
-    
+
     return;
 }
 
@@ -352,7 +350,7 @@ extern void fds_gemv_beta( int m, int n, double *M, double *v, double *y , doubl
     dgemv(&ACharConstantNoTrans, &m, &n, &AblConstantOne, M, &m,
           v, &AIntConstantOne, &beta, y, &AIntConstantOne);
 #endif
-    
+
     return;
 }
 
@@ -378,7 +376,7 @@ extern void fds_gemv_Trans( int m, int n, double *M, double *v, double *y ) {
     dgemv(&ACharConstantTrans, &m, &n, &AblConstantOne, M, &m,
           v, &AIntConstantOne, &AblConstantZero, y, &AIntConstantOne);
 #endif
-    
+
     return;
 }
 
@@ -408,12 +406,12 @@ extern void fds_ger( int m, int n, double alpha, double *x, int incx,
 #else
     dger(&m, &n, &alpha, x, &incx, y, &incy, a, &lda);
 #endif
-    
+
     return;
 }
 
 extern void fds_print( int n, double *A ) {
-    
+
     for ( int i = 0; i < n; ++i ) {
         for ( int j = 0; j < n; ++j ) {
             printf("%6.3e ", A[i + n * j]);
@@ -487,56 +485,52 @@ extern void pds_decompress( int nnz, int *Ci, double *Cx, double *A ) {
 /** @brief Check is the matrix is rank one
  *
  */
-extern int pds_r1_extract( int n, double *A, double *sgn, double *a ) {
-    
+extern int fds_r1_extract( int n, double *A, double *sgn, double *a ) {
+
     /* Get the first nonzero */
     int i, j, k = 0;
     for ( i = 0; i < n; ++i ) {
         if ( A[k] != 0 ) {
             break;
         }
-        k += n - i;
+        k += n +1;
     }
-    
+
     if ( i == n ) {
         return 0;
     }
-    
+
     double s = ( A[k] > 0 ) ? 1.0 : -1.0;
     double v = sqrt(fabs(A[k]));
     double eps = 0.0;
-    
+
     /* Extract diagonal */
     for ( k = 0; k < n; ++k ) {
-        a[k] = PACK_ENTRY(A, n, k, i) / v;
+        a[k] = A[n*k + i] / v;
     }
-    
-    int id = 0;
-    double *pstart = NULL;
+
     if ( s == 1.0 ) {
         for ( i = 0; i < n; ++i ) {
-            pstart = A + id;
             for ( j = 0; j < n - i; ++j ) {
-                eps += fabs(pstart[j] - a[i] * a[i + j]);
+                eps += fabs(A[j] - a[i] * a[i + j]);
             }
-            id += n - i;
+            A += n +1;
             if ( eps > 1e-10 ) {
                 return 0;
             }
         }
     } else {
         for ( i = 0; i < n; ++i ) {
-            pstart = A + id;
             for ( j = 0; j < n - i; ++j ) {
-                eps += fabs(pstart[j] + a[i] * a[i + j]);
+                eps += fabs(A[j] + a[i] * a[i + j]);
             }
-            id += n - i;
+            A += n +1;
             if ( eps > 1e-10 ) {
                 return 0;
             }
         }
     }
-    
+
     *sgn = s;
     return 1;
 }

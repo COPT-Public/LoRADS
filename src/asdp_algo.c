@@ -320,7 +320,7 @@ extern asdp_retcode ASDPInitADMMVars(asdp *ASolver, int *BlkDims, int nBlks, int
 
         ASDP_INIT(ASolver->vlagLp->matElem, double, nLpCols);
         ASDP_MEMCHECK(ASolver->vlagLp->matElem);
-        
+
         ASDP_INIT(ASolver->lagLp->matElem, double, nLpCols);
         ASDP_MEMCHECK(ASolver->lagLp->matElem);
         // lpRandom(ASolver->vlagLp->matElem, nLpCols);
@@ -364,7 +364,7 @@ extern asdp_retcode ASDPInitADMMVars(asdp *ASolver, int *BlkDims, int nBlks, int
         ASDP_MEMCHECK(V);
         V->rank = ASolver->rankElem[iCone];
         V->nRows = BlkDims[iCone];
-        
+
         asdp_rk_mat_dense *lag;
         ASDP_INIT(lag, asdp_rk_mat_dense, 1);
         ASDP_MEMCHECK(lag);
@@ -930,20 +930,8 @@ extern void ASDPUVt(sdp_coeff *UVt_w_sum, asdp_rk_mat_dense *U, asdp_rk_mat_dens
     else if (UVt_w_sum->dataType == SDP_COEFF_DENSE)
     {
         sdp_coeff_dense *dense = (sdp_coeff_dense *)UVt_w_sum->dataMat;
-        double *fullDataMat;
-        ASDP_INIT(fullDataMat, double, dense->nSDPCol * dense->nSDPCol);
-        ASDP_ZERO(fullDataMat, double, dense->nSDPCol * dense->nSDPCol);
         // alpha = 1.0, beta = 0.0;
-        fds_syr2k(ACharConstantUploLow, 'N', U->nRows, U->rank, 1.0, U->matElem, V->matElem, 0.0, fullDataMat);
-        int idx = 0;
-        int row = 0;
-        for (int col = 0; col < dense->nSDPCol; ++col)
-        {
-            ASDP_MEMCPY(&dense->dsMatElem[idx], &fullDataMat[dense->nSDPCol * col + row], double, dense->nSDPCol - col);
-            row++;
-            idx += (dense->nSDPCol - col);
-        }
-        ASDP_FREE(fullDataMat);
+        fds_syr2k(ACharConstantUploLow, 'N', U->nRows, U->rank, 1.0, U->matElem, V->matElem, 0.0, dense->dsMatElem);
     }
 }
 
@@ -1423,18 +1411,23 @@ extern void AConeDetectDenseRowSparsity(sdp_coeff *sdp_coeff_w_sum, int *nNnzRow
     ASDP_ZERO(nNnzRowSumTemp, int, n);
 
     nNnzRowSum[0] = 0;
-    for (int i = 0; i < (n + 1) * n / 2; ++i)
+    int i = 0;
+    for (int col = 0; col < n; ++col)
     {
-        if (fabs(dense->dsMatElem[i]) > 0.0 && nNnzRowSumTemp[row] == 0)
+        i += col;
+        for (int row = col; row < n; ++row)
         {
-            nNnzRowSumTemp[row] = 1;
-            nNnzRowSum[0] += nNnzRowSumTemp[row];
-        }
-        row++;
-        if (row == n)
-        {
-            col++;
-            row = col;
+            if (fabs(dense->dsMatElem[i]) > 0.0 && nNnzRowSumTemp[row] == 0)
+            {
+                nNnzRowSumTemp[row] = 1;
+                nNnzRowSum[0] += nNnzRowSumTemp[row];
+            }
+            row++;
+            if (row == n)
+            {
+                col++;
+                row = col;
+            }
         }
     }
     ASDP_FREE(nNnzRowSumTemp);
@@ -1446,25 +1439,20 @@ extern void AConeDenseDetectSparsity(sdp_coeff **sdp_coeff_w_sum_pointer)
     sdp_coeff *sdp_coeff_w_sum = *sdp_coeff_w_sum_pointer;
     sdp_coeff_dense *dense = (sdp_coeff_dense *)sdp_coeff_w_sum->dataMat;
     int n = dense->nSDPCol;
-    int row = 0;
-    int col = 0;
+    int i = 0;
     int nnz = 0;
-    for (int i = 0; i < (n + 1) * n / 2; ++i)
+    for (int col = 0; col < n; ++col)
     {
-        if (fabs(dense->dsMatElem[i]) > 0.0)
+        i += col;
+        for (int row = col; row < n; ++row)
         {
-            nnz += 1;
-        }
-        row++;
-        if (row == n)
-        {
-            col++;
-            row = col;
+            if (fabs(dense->dsMatElem[i++]) > 0.0)
+            {
+                nnz += 1;
+            }
         }
     }
     double spRatio = (double)nnz / (double)((n + 1) * n / 2);
-    row = 0;
-    col = 0;
     if (spRatio <= 0.1)
     {
         sdp_coeff_w_sum->dataType = SDP_COEFF_SPARSE;
@@ -1479,27 +1467,24 @@ extern void AConeDenseDetectSparsity(sdp_coeff **sdp_coeff_w_sum_pointer)
         for (int row = 0; row < n; row++)
         {
             ASDP_INIT(sparse->rowCol2NnzIdx[row], int, row + 1);
-            for (int i = 0; i < row + 1; ++i)
-            {
-                sparse->rowCol2NnzIdx[row][i] = -1;
-            }
+            memset(sparse->rowCol2NnzIdx[row], -1, sizeof(int) * (row +1));
         }
         int count = 0;
-        for (int i = 0; i < (n + 1) * n / 2; ++i)
+        int i = 0;
+        for (int col = 0; col < n; ++col)
         {
-            if (fabs(dense->dsMatElem[i]) > 0.0)
+            i += col;
+            for (int row = col; row < n; ++row)
             {
-                sparse->triMatElem[count] = dense->dsMatElem[i];
-                sparse->triMatRow[count] = row;
-                sparse->triMatCol[count] = col;
-                sparse->rowCol2NnzIdx[row][col] = count;
-                count++;
-            }
-            row++;
-            if (row == n)
-            {
-                col++;
-                row = col;
+                if (fabs(dense->dsMatElem[i]) > 0.0)
+                {
+                    sparse->triMatElem[count] = dense->dsMatElem[i];
+                    sparse->triMatRow[count] = row;
+                    sparse->triMatCol[count] = col;
+                    sparse->rowCol2NnzIdx[row][col] = count;
+                    count++;
+                }
+                ++i;
             }
         }
         ASDP_FREE(dense->dsMatElem);
@@ -1516,18 +1501,15 @@ extern void AConeDenseDetectSparsity(sdp_coeff **sdp_coeff_w_sum_pointer)
         for (int row = 0; row < dense->nSDPCol; ++row)
         {
             ASDP_INIT(dense->rowCol2NnzIdx[row], int, row + 1);
-            for (int i = 0; i < row + 1; ++i)
-            {
-                dense->rowCol2NnzIdx[row][i] = -1;
-            }
+            memset(dense->rowCol2NnzIdx[row], -1, sizeof(int) * (row +1));
         }
-        int count = 0;
+        int i = 0;
         for (int col = 0; col < dense->nSDPCol; ++col)
         {
+            i += col;
             for (int row = col; row < dense->nSDPCol; ++row)
             {
-                dense->rowCol2NnzIdx[row][col] = count;
-                count++;
+                dense->rowCol2NnzIdx[row][col] = i++;
             }
         }
         sdp_coeff_w_sum->destroy = destroyForAuxiDense;
@@ -2022,7 +2004,7 @@ static void MvecDense(void *MMat, double *xVec, double *yVec)
 {
     sdp_coeff_dense *dense = (sdp_coeff_dense *)MMat;
     double alpha = -1.0;
-    fds_symv_L(dense->nSDPCol, alpha, dense->dsMatElem, xVec, 0.0, yVec);
+    fds_symv(dense->nSDPCol, alpha, dense->dsMatElem, xVec, 0.0, yVec);
 }
 
 static void MvecSparse(void *MMat, double *xVec, double *yVec)

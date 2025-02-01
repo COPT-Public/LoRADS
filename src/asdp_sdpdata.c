@@ -109,10 +109,38 @@ static asdp_retcode dataMatCreateDenseImpl( void **pA, int nSDPCol, int dataMatN
     ASDP_MEMCHECK(dense);
     
     dense->nSDPCol = nSDPCol;
-    ASDP_INIT(dense->dsMatElem, double, PACK_NNZ(nSDPCol));
+    ASDP_INIT(dense->dsMatElem, double, nSDPCol * nSDPCol);
     ASDP_MEMCHECK(dense->dsMatElem);
-    
-    pds_decompress(dataMatNnz, dataMatIdx, dataMatElem, dense->dsMatElem);
+
+    // we need a lookup to find out how to translate our packed indices to full indices. Since we will only fill the lower
+    // triangle, we can use the last column of our dense matrix as lookup. Since our indices are smaller than the values,
+    // there's enough space even for the last element.
+    assert(sizeof(double) <= 2*sizeof(int));
+
+    int *lookup = (int*)&dense->dsMatElem[nSDPCol * (nSDPCol -1)];
+    *lookup = 0;
+    for ( int i = 0; i < nSDPCol; ++i) {
+        *(lookup +1) = *(lookup++) + nSDPCol - i;
+    }
+    // decompress general dense matrix
+    for ( int k = 0; k < dataMatNnz; ++k ) {
+        int packed_idx = dataMatIdx[k];
+        // binary search for the first element in lookup that is not smaller than packed_idx
+        int lo = 0, len = nSDPCol;
+        while (len != 0) {
+            int half_len = len >> 1;
+            int m = lo + half_len;
+            if (lookup[m] < packed_idx) {
+                lo = m +1;
+                len -= half_len +1;
+            } else {
+                len = half_len;
+            }
+        }
+        int col = lo;
+        int row = packed_idx - lookup[col] + col;
+        dense->dsMatElem[nSDPCol * col + row] = dataMatElem[k];
+    }
 
     *pA = (void *) dense;
     
@@ -147,7 +175,7 @@ static void dataMatScalSparseImpl( void *A, double alpha ) {
 static void dataMatScalDenseImpl( void *A, double alpha ) {
     
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
-    int nElem = PACK_NNZ(dsA->nSDPCol);
+    int nElem = dsA->nSDPCol * dsA->nSDPCol;
     int incx = 1;
     
     scal(&nElem, &alpha, dsA->dsMatElem, &incx);
@@ -262,6 +290,7 @@ static double dataMatNormDenseImpl( void *A, int type ) {
     
     if ( type == FRO_NORM ) {
         for ( int i = 0; i < nCol; ++i ) {
+            p += i;
             nrmA += p[0] * p[0];
             colLen = nCol - i - 1;
             colNrm = nrm2(&colLen, p + 1, &incx);
@@ -271,6 +300,7 @@ static double dataMatNormDenseImpl( void *A, int type ) {
         nrmA = sqrt(nrmA);
     } else if ( type == ABS_NORM ) {
         for ( int i = 0; i < nCol; ++i ) {
+            p += i;
             nrmA += fabs(p[0]);
             colLen = nCol - i - 1;
             nrmA += nrm1(&colLen, p + 1, &incx) * 2;
@@ -287,9 +317,9 @@ static void dataMatDenseNrm1(void *A, double *res){
     int nCol = dsA->nSDPCol;
     int incx = 1;
     int colLen; ///< Exclude diagonal
-    double colNrm; ///< Exclude diagonal
     double *p = dsA->dsMatElem;
     for ( int i = 0; i < nCol; ++i ) {
+        p += i;
         nrmA += fabs(p[0]);
         colLen = nCol - i - 1;
         nrmA += nrm1(&colLen, p + 1, &incx) * 2;
@@ -304,9 +334,9 @@ static void dataMatDenseNrm2Square(void *A, double *res){
     int nCol = dsA->nSDPCol;
     int incx = 1;
     int colLen; ///< Exclude diagonal
-    double colNrm; ///< Exclude diagonal
     double *p = dsA->dsMatElem;
     for ( int i = 0; i < nCol; ++i ) {
+        p += i;
         nrmA += pow(p[0], 2);
         colLen = nCol - i - 1;
         nrmA += pow(nrm2(&colLen, p + 1, &incx), 2) * 2;
@@ -318,15 +348,14 @@ static void dataMatDenseNrm2Square(void *A, double *res){
 
 static void dataMatDenseNrmInf(void *A, double *res){
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
-    double nrmA = 0.0;
     int nCol = dsA->nSDPCol;
-    int incx = 1;
-    int colLen; ///< Exclude diagonal
-    double colNrm; ///< Exclude diagonal
     double *p = dsA->dsMatElem;
     res[0] = 0;
-    for (int i = 0; i < (nCol+1)*nCol /2; ++i ){
-        res[0] = ASDP_MAX(res[0], ASDP_ABS(p[i]));
+    for (int col = 0; col < nCol; ++col ){
+        for (int row = col; row < nCol; ++row) {
+            res[0] = ASDP_MAX(res[0], ASDP_ABS(p[row]));
+        }
+        p += nCol;
     }
     
     return;
@@ -334,7 +363,7 @@ static void dataMatDenseNrmInf(void *A, double *res){
 
 extern void dataMatDenseZeros(void *A){
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
-    ASDP_ZERO(dsA->dsMatElem, double, dsA->nSDPCol * (dsA->nSDPCol + 1)/2);
+    ASDP_ZERO(dsA->dsMatElem, double, dsA->nSDPCol * dsA->nSDPCol);
 }
 
 static void dataMatDenseAddPreprocessRankOneConeDetect(void *A, int *flagRankOne){
@@ -344,7 +373,7 @@ static void dataMatDenseAddPreprocessRankOneConeDetect(void *A, int *flagRankOne
 static void dataMatDenseScale(void *A, double scaleFactor){
     // A = A * scaleFactor
     sdp_coeff_dense *dense = (sdp_coeff_dense *)A;
-    int n = dense->nSDPCol * (dense->nSDPCol + 1)/2;
+    int n = dense->nSDPCol * dense->nSDPCol;
     vvscl(&n, &scaleFactor, dense->dsMatElem);
 }
 
@@ -404,7 +433,7 @@ static asdp_retcode dataMatBuildUpEigDenseImpl( void *A, int *rank, double *auxi
     sdp_coeff_dense *dense = (sdp_coeff_dense *) A;
     
     double sgn = 0.0;
-    int isRankOne = pds_r1_extract(dense->nSDPCol, dense->dsMatElem, &sgn, auxiFullMat);
+    int isRankOne = fds_r1_extract(dense->nSDPCol, dense->dsMatElem, &sgn, auxiFullMat);
     
     if ( !isRankOne ) {
         goto exit_cleanup;
@@ -447,7 +476,7 @@ static int dataMatGetNnzDenseImpl( void *A ) {
     
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
     
-    return PACK_NNZ(dsA->nSDPCol);
+    return dsA->nSDPCol * dsA->nSDPCol;
 }
 
 
@@ -487,18 +516,17 @@ static void dataMatDumpDenseImpl( void *A, double *v ) {
     
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
     int nCol = dsA->nSDPCol;
-    int dsIdx; ///< Index for (col, row) = (i, j) in dsMatElem
-    
-    for ( int i = 0, j; i < nCol; ++i) { // Column index
-        dsIdx = i * (nCol * 2 - i + 1) / 2;
-        v[i * nCol + i] = dsA->dsMatElem[dsIdx];
-        for ( j = i + 1; j < nCol; ++j ) { // Row index
-            dsIdx = i * (nCol * 2 - i - 1) / 2 + j;
-            v[i * nCol + j] = dsA->dsMatElem[dsIdx];
-            v[j * nCol + i] = v[i * nCol + j];
+
+    int i = 0;
+    for ( int col = 0; col < nCol; ++col) {
+        v[i] = dsA->dsMatElem[i];
+        ++i;
+        for ( int row = col +1; row < nCol; ++row ) {
+            v[row * nCol + col] = v[i] = dsA->dsMatElem[i];
+            ++i;
         }
     }
-    
+
     return;
 }
 
@@ -522,7 +550,7 @@ static void dataMatGetDenseSparsityImpl( void *A, int *spout ) {
     
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
     
-    for ( int i = 0; i < PACK_NNZ(dsA->nSDPCol); ++i ) {
+    for ( int i = 0; i < dsA->nSDPCol * dsA->nSDPCol; ++i ) {
         spout[i] = 1;
     }
     
@@ -561,20 +589,30 @@ static void dataMatAddSparseToBufferImpl( void *A, double a, int *spmat, double 
     return;
 }
 
+#ifdef UNDER_BLAS
+void daxpy_(const int *n, const double *da, const double *dx, const int *incx, const double *dy, const int *incy);
+#else
+void daxpy(const int *n, const double *da, const double *dx, const int *incx, const double *dy, const int *incy);
+#endif
+
 static void dataMatAddDenseToBufferImpl( void *A, double a, int *spmat, double *buffer ) {
     /* Whenever a dense matrix exists, the dual matrix must be dense */
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
-    
+
     if ( !spmat ) {
-        /* We are adding a dense packed matrix to a dense full matrix */
-        double *dPackElem = dsA->dsMatElem;
-        double *dFullElem = buffer;
+        /* We are adding two dense full matrices */
+        double *dAElem = dsA->dsMatElem;
+        int inc = 1;
+        int n = dsA->nSDPCol;
         for ( int i = 0; i < dsA->nSDPCol; ++i ) {
-            for ( int j = 0; j < dsA->nSDPCol - i; ++j ) {
-                dFullElem[j] += a * dPackElem[j];
-            }
-            dFullElem += dsA->nSDPCol + 1;
-            dPackElem += (dsA->nSDPCol - i);
+            #ifdef UNDER_BLAS
+            daxpy_(&n, &a, dAElem, &inc, buffer, &inc);
+            #else
+            daxpy(&n, &a, dAElem, &inc, buffer, &inc);
+            #endif
+            dAElem += dsA->nSDPCol +1;
+            buffer += dsA->nSDPCol +1;
+            --n;
         }
         
     } else {
@@ -821,30 +859,7 @@ extern asdp_retcode dataMatSparseMultiRkMat(void *A, asdp_rk_mat_dense *X, doubl
     return retcode;
 }
 
-
-
-static void tsp_ASpSemiLowby(int n, int nnz, double a, int *idxInv, int *Ai, int *Aj, double *Ax, double *x, double *y){
-    if (a == 0.0){
-        return;
-    }
-    for (int i = 0; i < nnz; ++i){
-        int row = Ai[i];
-        int col = Aj[i];
-        // find nnz index order
-        int nnzIdx = idxInv[row];
-        if (nnzIdx >= n){
-            ASDP_ERROR_TRACE;
-            asdp_printf("There exists a bug, the index should smaller than %d", n);
-        }
-        y[nnzIdx] += a * x[col] * Ax[i];
-        if (row != col){
-            nnzIdx = idxInv[col];
-            y[nnzIdx] += a * x[row] * Ax[i];
-        }
-    }
-}
-
-static void tsp_AUV(int n, int nnzA, int *Ai, int *Aj, double *Ax, int nnzUVt, int *UVti, int *UVtj, double *UVtx, int **nnzIdx, double *res){
+static inline void tsp_AUV(int n, int nnzA, int *Ai, int *Aj, double *Ax, int nnzUVt, int *UVti, int *UVtj, double *UVtx, int **nnzIdx, double *res){
     // A is sparse, UVtx
     int incx = 1;
     int rowA = 0; int colA = 0;
@@ -875,7 +890,7 @@ static void tsp_AUV(int n, int nnzA, int *Ai, int *Aj, double *Ax, int nnzUVt, i
     }
 }
 
-static void tsp_ADenseUV(int n, int nnzA, int *Ai, int *Aj, double *Ax, int nUVt, double *UVtx, int **nnzIdx, double *res){
+static inline void tsp_ADenseUV(int n, int nnzA, int *Ai, int *Aj, double *Ax, int nUVt, double *UVtx, int **nnzIdx, double *res){
     int rowA = 0; int colA = 0; int idx = 0;
     double temp;
     for (int i = 0; i < nnzA; ++i){
@@ -905,7 +920,7 @@ extern void tsp_AUVObj(int n, int nnz, int *Ai, int *Aj, double *Ax, int rank, i
     double *UVt;
     double temp = 0.0;
     ASDP_INIT(UVt, double, nnz);
-    int nSquare = pow(n, 2);
+    int nSquare = n * n;
     double sparseRatio = (double) nnz / (double) nSquare;
     if ( sparseRatio < 0.08){
         int incx = nRows;
@@ -966,13 +981,12 @@ static void dataMatSparseAddDenseSDPCoeff(void *A, void *B, double weight){
     sdp_coeff_sparse *sparse = (sdp_coeff_sparse *) A;
     sdp_coeff_dense *dense = (sdp_coeff_dense *) B;
     int n = dense->nSDPCol;
-    int row, col;
     if (dense->rowCol2NnzIdx == NULL){
         for (int i = 0; i < sparse->nTriMatElem; ++i){
             int row = sparse->triMatRow[i];
             int col = sparse->triMatCol[i];
             if (row >= col){
-                dense->dsMatElem[(n * col -col*(col+1)/2 + row)] += weight * sparse->triMatElem[i];
+                dense->dsMatElem[n*col + row] += weight * sparse->triMatElem[i];
             }
         }
     }else{
@@ -1032,27 +1046,15 @@ extern asdp_retcode dataMatDenseMultiRkMat(void *A, asdp_rk_mat_dense *X, double
     sdp_coeff_dense *dense = (sdp_coeff_dense *) A;
     double alpha = 1.0;
     double beta = 0.0;
-    // construct full matrix
-    double *fullMat;
-    ASDP_INIT(fullMat, double, dense->nSDPCol * dense->nSDPCol);
-    int idx = 0;
-    for (int col = 0; col < dense->nSDPCol; ++col){
-        for (int row = col; row < dense->nSDPCol; ++row){
-            fullMat[dense->nSDPCol * col + row] = dense->dsMatElem[idx];
-            fullMat[dense->nSDPCol * row + col] = dense->dsMatElem[idx];
-            idx++;
-        }
-    }
     char side = 'L'; // C:= alpha * A * B + beta * C;
     char uplo = 'L';
     int m = dense->nSDPCol;
     int n = X->rank;
 #ifdef UNDER_BLAS
-    dsymm_(&side, &uplo, &m, &n, &alpha, fullMat, &m, X->matElem, &m, &beta, AX, &m );
+    dsymm_(&side, &uplo, &m, &n, &alpha, dense->dsMatElem, &m, X->matElem, &m, &beta, AX, &m );
 #else
-    dsymm(&side, &uplo, &m, &n, &alpha, fullMat, &m, X->matElem, &m, &beta, AX, &m );
+    dsymm(&side, &uplo, &m, &n, &alpha, dense->dsMatElem, &m, X->matElem, &m, &beta, AX, &m );
 #endif
-    ASDP_FREE(fullMat);
 exit_cleanup:
     return retcode;
 }
@@ -1065,44 +1067,35 @@ static asdp_retcode dataMatDenseMultiRkMatInnerProRkMat(void *A, asdp_rk_mat_den
     res[0] = 0.0;
     asdp_retcode retcode = ASDP_RETCODE_OK;
     sdp_coeff_dense *dense = (sdp_coeff_dense *) A;
-    
-    double alpha = 1.0;
-    double beta = 0.0;
-    int n = 0;
-    int incx = 1;
+
     if(FLAG_UV == FLAG_INI || FLAG_UV == FLAG_UVt){
         assert(UVtType == SDP_COEFF_DENSE);
         sdp_coeff_dense *UVt = (sdp_coeff_dense *)UVtIn;
-        n = UVt->nSDPCol * (UVt->nSDPCol + 1) / 2;
-        res[0] += dot(&n, dense->dsMatElem, &incx, UVt->dsMatElem, &incx);
-        int idx = 0; int colNum = UVt->nSDPCol;
-        for (int i = 0; i < UVt->nSDPCol; ++i){
-            res[0] -= 0.5 * dense->dsMatElem[idx] * UVt->dsMatElem[idx];
-            idx += colNum;
-            colNum -= 1;
+        *res = 0.0;
+        double *denseElem = dense->dsMatElem;
+        double *UVtElem = UVt->dsMatElem;
+        int incx = 1;
+        int n = UVt->nSDPCol -1;
+        for (int col = 0; col < UVt->nSDPCol; ++col){
+            *res += 0.5 * (*denseElem) * (*UVtElem) + dot(&n, ++denseElem, &incx, ++UVtElem, &incx);
+            denseElem += dense->nSDPCol;
+            UVtElem += UVt->nSDPCol;
+            --n;
         }
     }else if (FLAG_UV == FLAG_OBJ){
-        double *UVt;
-        ASDP_INIT(UVt, double, dense->nSDPCol * dense->nSDPCol);
-        fds_syr2k(ACharConstantUploLow, 'N', U->nRows, U->rank, 1.0, U->matElem, V->matElem, 1.0, UVt);
-        double *UVtlow;
-        n = dense->nSDPCol * (dense->nSDPCol + 1)/2;
-        ASDP_INIT(UVtlow, double, n);
-        int idx = 0; int row = 0;
-        for (int col = 0; col < dense->nSDPCol; ++col){
-            ASDP_MEMCPY(&UVtlow[idx], &UVt[dense->nSDPCol * col + row], double, dense->nSDPCol - col);
-            row++;
-            idx += (dense->nSDPCol - col);
+        // UVt := U V^T + V U^T
+        // (<U V^T, dense> + V U^T, dense>)/2
+        // fds_syr2k(ACharConstantUploLow, 'N', U->nRows, U->rank, 1.0, U->matElem, V->matElem, 1.0, UVt);
+        *res = 0.0;
+        int i = 0;
+        for (int col = 0; col < U->nRows; ++col) {
+            *res += dot(&U->rank, &U->matElem[col], &U->nRows, &V->matElem[col], &V->nRows) * dense->dsMatElem[i++];
+            for (int row = col +1; row < U->nRows; ++row) {
+                *res += 0.5 * (dot(&U->rank, &U->matElem[row], &U->nRows, &V->matElem[col], &V->nRows) +
+                               dot(&U->rank, &U->matElem[col], &U->nRows, &V->matElem[row], &V->nRows)) *
+                    dense->dsMatElem[i++];
+            }
         }
-        res[0] += dot(&n, dense->dsMatElem, &incx, UVtlow, &incx);
-        idx = 0; int colNum = dense->nSDPCol;
-        for (int i = 0; i < dense->nSDPCol; ++i){
-            res[0] -= 0.5 * dense->dsMatElem[idx] * UVt[idx];
-            idx += colNum;
-            colNum -= 1;
-        }
-        ASDP_FREE(UVt);
-        ASDP_FREE(UVtlow);
     }
 
 exit_cleanup:
@@ -1113,10 +1106,16 @@ static void dataMatDenseAddDenseSDPCoeff(void *A, void *B, double weight){
     // B += A * weight
     sdp_coeff_dense *denseA = (sdp_coeff_dense *) A;
     sdp_coeff_dense *denseB = (sdp_coeff_dense *) B;
-    int n = denseA->nSDPCol * (denseA->nSDPCol + 1) / 2;
+    int n = denseA->nSDPCol;
     int incx = 1;
-    axpy(&n, &weight, denseA->dsMatElem, &incx, denseB->dsMatElem, &incx);
-        
+    double *dataA = denseA->dsMatElem;
+    double *dataB = denseB->dsMatElem;
+    for (int col = 0; col < n; ++col) {
+        axpy(&n, &weight, dataA, &incx, dataB, &incx);
+        dataA += denseA->nSDPCol +1;
+        dataB += denseA->nSDPCol +1;
+        --n;
+    }
 }
 
 static void dataMatDenseAddSDPCoeff(void *A, void *B, double weight, sdp_coeff_type B_type){
@@ -1408,12 +1407,12 @@ extern asdp_retcode sdpDataMatSetData( sdp_coeff *sdpCoeff, int nSDPCol, int dat
     sdpCoeff->nSDPCol = nSDPCol;
     
     /* Choose data matrix type */
-    int nPack = PACK_NNZ(nSDPCol);
-    
+    int nFull = nSDPCol * nSDPCol;
+
     /* At this stage, only sparse, zero and dense matrices are classified */
     if ( dataMatNnz == 0 ) {
         sdpDataMatIChooseType(sdpCoeff, SDP_COEFF_ZERO);
-    } else if ( dataMatNnz > 0.3 * nPack ) {
+    } else if ( dataMatNnz > 0.3 * nFull ) {
         sdpDataMatIChooseType(sdpCoeff, SDP_COEFF_DENSE);
     } else {
         sdpDataMatIChooseType(sdpCoeff, SDP_COEFF_SPARSE);
@@ -1627,8 +1626,15 @@ static asdp_retcode copyDenseToDense(sdp_coeff *dst, sdp_coeff *src){
     sdp_coeff_dense *srcData = (sdp_coeff_dense *)src->dataMat;
     temp->nSDPCol = srcData->nSDPCol;
     int n = srcData->nSDPCol;
-    ASDP_INIT(temp->dsMatElem, double, (n+1)*n/2);
-    ASDP_MEMCPY(temp->dsMatElem, srcData->dsMatElem, double, (n+1)*n/2);
+    ASDP_INIT(temp->dsMatElem, double, n * n);
+    double *destElem = temp->dsMatElem;
+    double *srcElem = srcData->dsMatElem;
+    for (int col = 0; col < srcData->nSDPCol; ++col) {
+        ASDP_MEMCPY(destElem, srcElem, double, n);
+        destElem += srcData->nSDPCol +1;
+        srcElem += srcData->nSDPCol +1;
+        --n;
+    }
     dst->dataMat = (void *)temp;
 exit_cleanup:
     return retcode;
@@ -1640,9 +1646,14 @@ static asdp_retcode copyZeroToDense(sdp_coeff *dst, sdp_coeff *src){
     ASDP_INIT(temp, sdp_coeff_dense, 1);
     temp->nSDPCol = src->nSDPCol;
     int n = src->nSDPCol;
-    ASDP_INIT(temp->dsMatElem, double, (n+1)*n/2);
+    ASDP_INIT(temp->dsMatElem, double, n * n);
     ASDP_MEMCHECK(temp->dsMatElem);
-    ASDP_ZERO(temp->dsMatElem, double, (n+1)*n/2);
+    double *dest = temp->dsMatElem;
+    for (int col = 0; col < src->nSDPCol; ++col) {
+        ASDP_ZERO(dest, double, n);
+        dest += src->nSDPCol +1;
+        --n;
+    }
     dst->dataMat = (void *)temp;
 exit_cleanup:
     return retcode;
@@ -1655,13 +1666,19 @@ static asdp_retcode copySparseToDense(sdp_coeff *dst, sdp_coeff *src){
     sdp_coeff_sparse *srcData = (sdp_coeff_sparse *)src->dataMat;
     temp->nSDPCol = srcData->nSDPCol;
     int n = srcData->nSDPCol;
-    ASDP_INIT(temp->dsMatElem, double, (n+1)*n/2);
+    ASDP_INIT(temp->dsMatElem, double, n * n);
     ASDP_MEMCHECK(temp->dsMatElem);
-    ASDP_ZERO(temp->dsMatElem, double, (n+1)*n/2);
+    double *dest = temp->dsMatElem;
+    for (int col = 0; col < src->nSDPCol; ++col) {
+        ASDP_ZERO(dest, double, n);
+        dest += src->nSDPCol +1;
+        --n;
+    }
+    n = srcData->nSDPCol;
     for (int i = 0; i<srcData->nTriMatElem; ++i){
         int row = srcData->triMatRow[i];
         int col = srcData->triMatCol[i];
-        temp->dsMatElem[(n * col - col * (col + 1) / 2 + row)] = srcData->triMatElem[i];
+        temp->dsMatElem[n*col + row] = srcData->triMatElem[i];
     }
     dst->dataMat = (void *)temp;
 exit_cleanup:

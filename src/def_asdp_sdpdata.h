@@ -92,7 +92,7 @@ typedef struct {
 
 typedef struct {
     
-    /* In a dense matrix, we store an n * (n + 1) / 2 array in packed format */
+    /* In a dense matrix, we store the matrix in full col-major order, but only the lower triangle is maintained */
     int     nSDPCol;
     double *dsMatElem;
     int    **rowCol2NnzIdx;
