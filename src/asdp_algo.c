@@ -414,6 +414,7 @@ extern int AUG_RANK(asdp *ASolver, int *BlkDims, int nBlks, double aug_factor)
     asdp_rk_mat_dense **V = ASolver->V;
     asdp_rk_mat_dense **R = ASolver->R;
     asdp_rk_mat_dense **S = ASolver->Vlag;
+    asdp_rk_mat_dense **T = ASolver->lag;
     asdp_rk_mat_dense **Grad = ASolver->Grad;
     asdp_rk_mat_dense **M2temp = ASolver->M2temp;
     int allElem = 0;
@@ -459,6 +460,11 @@ extern int AUG_RANK(asdp *ASolver, int *BlkDims, int nBlks, double aug_factor)
         // lpRandom(&S[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
         lpRandomDiag(&S[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank, U[iCone]->nRows, aug_rank);
         S[iCone]->rank = new_rank;
+
+        REALLOC(&T[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
+        // lpRandom(&S[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
+        lpRandomDiag(&T[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows, aug_rank);
+        T[iCone]->rank = new_rank;
 
         REALLOC(&M2temp[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         M2temp[iCone]->rank = new_rank;
