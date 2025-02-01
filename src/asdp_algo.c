@@ -86,7 +86,7 @@ extern double normalRandom()
     return z;
 }
 
-static asdp_retcode ASDPSetLpCone(asdpLPCone *lpCone, int nRows, int nLpCols, int *LpMatBeg, int *LpMatIdx, double *LpMatElem)
+extern asdp_retcode ASDPSetLpCone(asdpLPCone *lpCone, int nRows, int nLpCols, int *LpMatBeg, int *LpMatIdx, double *LpMatElem)
 {
     asdp_retcode retcode = ASDP_RETCODE_OK;
 
