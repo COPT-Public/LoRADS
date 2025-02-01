@@ -32,6 +32,7 @@ extern "C"
 
     extern asdp_retcode ASDPSolverCreate(asdp **pHSolver);
     extern void ASDPDestroy(asdp **pHSolver);
+    extern asdp_retcode ASDPSetLpCone(asdpLPCone *lpCone, int nRows, int nLpCols, int *LpMatBeg, int *LpMatIdx, double *LpMatElem);
     extern asdp_retcode ASDPInitConeData(asdp *ASolver, user_data **SDPDatas, double **coneMatElem, int **coneMatBeg, int **coneMatIdx, int *BlkDims, int nConstrs, int nBlks, int nLpCols, int *LpMatBeg, int *LpMatIdx, double *LpMatElem);
     extern double normalRandom();
     extern void ASDPDestroyConeData(asdp *ASolver);

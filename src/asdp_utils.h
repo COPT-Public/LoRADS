@@ -64,7 +64,6 @@
 #define PACK_NNZ(n) ((n) * ((n) + 1) / 2)
 #define PACK_IDX(n, i, j) (int)((2 * (n) - (j)-1) * (j) / 2) + (i)
 #define FULL_IDX(n, i, j) ((j) * (n) + (i))
-#define PACK_ENTRY(A, n, i, j) (A[(int)((2 * (n) - (j)-1) * (j) / 2) + (i)])
 #define FULL_ENTRY(A, n, i, j) (A[(j) * (n) + (i)])
 
 #define ASDP_PROFILER(func, ntest)                                \

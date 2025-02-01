@@ -110,6 +110,7 @@
 //
 //
 //extern void ASDPPosDefDetermineDense(void *A, double cObjNrm1, int *FLAG){
+//    TODO: not adjusted to new dense storage in dsMatElem
 //    sdp_coeff_dense *dense = (sdp_coeff_dense *)A;
 //    double *lowerTriMat = dense->dsMatElem;
 //    int row = 0; int col = 0; int n = dense->nSDPCol;
