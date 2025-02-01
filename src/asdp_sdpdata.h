@@ -10,30 +10,90 @@
 #else
 #include "asdp.h"
 #include "def_asdp_sdpdata.h"
+#include "asdp_utils.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+asdp_retcode sdpDataMatCreate( sdp_coeff **psdpCoeff );
+asdp_retcode sdpDataMatSetData( sdp_coeff *sdpCoeff, int nSDPCol, int dataMatNnz, int *dataMatIdx, double *dataMatElem );
 
-extern asdp_retcode sdpDataMatCreate( sdp_coeff **psdpCoeff );
-extern asdp_retcode sdpDataMatSetData( sdp_coeff *sdpCoeff, int nSDPCol, int dataMatNnz, int *dataMatIdx, double *dataMatElem );
-extern int sdpDataMatGetRank( sdp_coeff *sdpCoeff );
-extern void sdpDataMatScal( sdp_coeff *sdpCoeff, double scal );
+inline int sdpDataMatGetRank( sdp_coeff *sdpCoeff ) {
 
-extern double sdpDataMatNorm( sdp_coeff *sdpCoeff, int type );
-extern asdp_retcode sdpDataMatBuildUpEigs( sdp_coeff *sdpCoeff, double *dAuxFullMatrix );
-extern int sdpDataMatGetNnz( sdp_coeff *sdpCoeff );
-extern void sdpDataMatDump( sdp_coeff *sdpCoeff, double *dFullMatrix );
-extern void sdpDataMatGetMatNz( sdp_coeff *sdpCoeff, int *iMatSpsPattern );
-extern void sdpDataMatAddToBuffer( sdp_coeff *sdpCoeff, double dElem, int *iMatSpsPattern, double *dBuffer );
-extern sdp_coeff_type sdpDataMatGetType( sdp_coeff *sdpCoeff );
-extern void sdpDataMatClear( sdp_coeff *sdpCoeff );
-extern void sdpDataMatDestroy( sdp_coeff **psdpCoeff );
-extern void sdpDataMatView( sdp_coeff *sdpCoeff );
-extern int sdpDataMatIsEye( sdp_coeff *sdpCoeff, double *dEyeMultiple );
-extern int sdpDataMatIsUnitCol( sdp_coeff *sdpCoeff, int *iUnitCol );
-extern void sdpDataCOPY(sdp_coeff *dst, sdp_coeff *src);
+    if ( sdpCoeff->dataType == SDP_COEFF_ZERO ) {
+        return 0;
+    } else if ( sdpCoeff->dataType == SDP_COEFF_DSR1 || sdpCoeff->dataType == SDP_COEFF_SPR1 ) {
+        return 1;
+    } else if ( sdpCoeff->eigRank != -1 ) {
+        return sdpCoeff->eigRank;
+    }
+
+    return sdpCoeff->nSDPCol;
+}
+
+inline void sdpDataMatScal( sdp_coeff *sdpCoeff, double scal ) {
+
+    sdpCoeff->scal(sdpCoeff->dataMat, scal);
+
+    return;
+}
+
+inline double sdpDataMatNorm( sdp_coeff *sdpCoeff, int type ) {
+
+    return sdpCoeff->norm(sdpCoeff->dataMat, type);
+}
+
+
+inline sdp_coeff_type sdpDataMatGetType( sdp_coeff *sdpCoeff ) {
+
+    return sdpCoeff->dataType;
+}
+
+inline void sdpDataMatClear( sdp_coeff *sdpCoeff ) {
+
+    if ( !sdpCoeff ) {
+        return;
+    }
+
+    sdpCoeff->destroy(&sdpCoeff->dataMat);
+
+    if ( sdpCoeff->eigRank != -1 ) {
+        ASDP_FREE(sdpCoeff->eigVals);
+        ASDP_FREE(sdpCoeff->eigVecs);
+    }
+
+    ASDP_ZERO(sdpCoeff, sdp_coeff, 1);
+
+    return;
+}
+
+inline void sdpDataMatDestroy( sdp_coeff **psdpCoeff ) {
+
+    if ( !psdpCoeff ) {
+        return;
+    }
+
+    sdpDataMatClear(*psdpCoeff);
+    ASDP_FREE(*psdpCoeff);
+
+    return;
+}
+
+inline void sdpDataMatView( sdp_coeff *sdpCoeff ) {
+
+    sdpCoeff->view(sdpCoeff->dataMat);
+
+    return;
+}
+
+inline int sdpDataMatIsEye( sdp_coeff *sdpCoeff, double *dEyeMultiple ) {
+
+    return sdpCoeff->iseye(sdpCoeff->dataMat, dEyeMultiple);
+}
+
+inline int sdpDataMatIsUnitCol( sdp_coeff *sdpCoeff, int *iUnitCol ) {
+
+    return sdpCoeff->isunitcol(sdpCoeff->dataMat, iUnitCol) ;
+}
+
 #ifdef UNDER_BLAS
 extern void dsymm_( const char *side, const char *uplo, const int *m,
                    const int *n, const double *alpha, const double *a,

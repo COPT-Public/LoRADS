@@ -125,15 +125,6 @@ void fds_symv( int n, double alpha, double *A, double *x, double beta, double *y
     return;
 }
 
-extern void fds_symv_L(int n, double alpha, double *A, double *x, double beta, double *y){
-    // dspmv y := alpha*A*x + beta*y,
-#ifdef UNDER_BLAS
-    dspmv_(&ACharConstantUploLow, &n, &alpha, A, x, &AIntConstantOne, &beta, y, &AIntConstantOne);
-#else
-    dspmv(&ACharConstantUploLow, &n, &alpha, A, x, &AIntConstantOne, &beta, y, &AIntConstantOne);
-#endif
-}
-
 
 extern void reconstructSymmetricMatrix(sdp_coeff *slackVar, double *symmetricMatrix, int n){
     if (slackVar->dataType == SDP_COEFF_DENSE){
@@ -422,66 +413,6 @@ extern void fds_print( int n, double *A ) {
     return;
 }
 
-/** @brief Scale a packed dense matrix
- *
- */
-extern void pds_scal( double a, int n, double *A ) {
-    
-    int nnz = PACK_NNZ(n), incx = 1;
-    scal(&nnz, &a, A, &incx);
-    
-    return;
-}
-
-extern double pds_sum_abs( int n, double *A ) {
-    
-    double nrm = 0.0, *p = A;
-    int nrow = n, incx = 1;
-    
-    for ( int i = 0; i < n; ++i ) {
-        nrm -= 0.5 * fabs(p[0]);
-        nrm += nrm1(&nrow, p, &incx);
-        p += n - i; nrow -= 1;
-    }
-    
-    return 2.0 * nrm;
-}
-
-extern double pds_fro_norm( int n, double *A ) {
-    
-    double nrm = 0.0, colnrm, *p = A;
-    int nrow = n, incx = 1;
-    
-    for ( int i = 0; i < n; ++i ) {
-        nrm -= 0.5 * p[0] * p[0];
-        colnrm = nrm2(&nrow, p, &incx);
-        nrm += colnrm * colnrm;
-        p += n - i; nrow -= 1;
-    }
-    
-    return sqrt(2.0 * nrm);
-}
-
-extern void pds_dump( int n, double *A, double *v ) {
-    
-    for ( int i = 0, j; i < n; ++i ) {
-        for ( j = i; j < n; ++j ) {
-            FULL_ENTRY(v, n, i, j) = FULL_ENTRY(v, n, j, i) = PACK_ENTRY(A, n, i, j);
-        }
-    }
-    
-    return;
-}
-
-extern void pds_decompress( int nnz, int *Ci, double *Cx, double *A ) {
-    // decompress general dense matrix
-    for ( int k = 0; k < nnz; ++k ) {
-        A[Ci[k]] = Cx[k];
-    }
-    
-    return;
-}
-
 /** @brief Check is the matrix is rank one
  *
  */
@@ -533,38 +464,6 @@ extern int fds_r1_extract( int n, double *A, double *sgn, double *a ) {
 
     *sgn = s;
     return 1;
-}
-
-extern double pds_quadform( int n, double *A, double *v, double *aux ) {
-#ifdef UNDER_BLAS
-    dspmv_(&ACharConstantUploLow, &n, &AblConstantOne, A, v,
-          &AIntConstantOne, &AblConstantZero, aux, &AIntConstantOne);
-#else
-    dspmv(&ACharConstantUploLow, &n, &AblConstantOne, A, v,
-          &AIntConstantOne, &AblConstantZero, aux, &AIntConstantOne);
-#endif
-    
-    return dot(&n, aux, &AIntConstantOne, v, &AIntConstantOne);
-}
-
-extern void pds_spmv( char uplo, int n, double alpha, double *ap, double *x, int incx,
-                      double beta, double *y, int incy ) {
-#ifdef UNDER_BLAS
-    dspmv_(&uplo, &n, &alpha, ap, x, &incx, &beta, y, &incy);
-#else
-    dspmv(&uplo, &n, &alpha, ap, x, &incx, &beta, y, &incy);
-#endif
-    
-    return;
-}
-
-extern void pds_syr( char uplo, int n, double alpha, double *x, int incx, double *a, int lda ) {
-#ifdef UNDER_BLAS
-    dsyr_(&uplo, &n, &alpha, x, &incx, a, &lda);
-#else
-    dsyr(&uplo, &n, &alpha, x, &incx, a, &lda);
-#endif
-    return;
 }
 
 extern void fds_syr2k(char uplo, char trans, int n, int k, double alpha, double *a, double *b, double beta, double *c){
