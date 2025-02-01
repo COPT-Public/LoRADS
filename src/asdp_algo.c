@@ -149,17 +149,17 @@ extern void lpRandom(double *data, int n)
     }
 }
 
-extern void lpRandomDiag(double *data, int n, int nRows, int nCols)
+void lpRandomDiag(double *data, int nRows, int nCols)
 {
-    if (n == 0)
+    int r = ASDP_MIN(nRows, nCols);
+    if (r == 0)
     {
         return;
     }
-    int r = ASDP_MIN(nRows, nCols);
-    ASDP_ZERO(data, double, n);
+    double val = 1 / sqrt(r);
     for (int i = 0; i < r; ++i)
     {
-        data[i * nRows + i] = 1 / sqrt(r);
+        data[i * nRows + i] = val;
     }
 }
 
@@ -437,33 +437,33 @@ extern int AUG_RANK(asdp *ASolver, int *BlkDims, int nBlks, double aug_factor)
         REALLOC(&U[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         // lpRandom(&U[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
 
-        lpRandomDiag(&U[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank, U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&U[iCone]->matElem[(U[iCone]->nRows+1) * old_rank], U[iCone]->nRows, aug_rank);
         U[iCone]->rank = new_rank;
 
         REALLOC(&V[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         // lpRandom(&V[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
 
-        lpRandomDiag(&V[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank, U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&V[iCone]->matElem[(U[iCone]->nRows+1) * old_rank], U[iCone]->nRows, aug_rank);
         V[iCone]->rank = new_rank;
 
         REALLOC(&R[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         // lpRandom(&R[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
-        lpRandomDiag(&R[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank, U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&R[iCone]->matElem[(U[iCone]->nRows+1) * old_rank], U[iCone]->nRows, aug_rank);
         R[iCone]->rank = new_rank;
 
         REALLOC(&Grad[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         // lpRandom(&Grad[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
-        lpRandomDiag(&Grad[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank, U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&Grad[iCone]->matElem[(U[iCone]->nRows+1) * old_rank], U[iCone]->nRows, aug_rank);
         Grad[iCone]->rank = new_rank;
 
         REALLOC(&S[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         // lpRandom(&S[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
-        lpRandomDiag(&S[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank, U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&S[iCone]->matElem[(U[iCone]->nRows+1) * old_rank], U[iCone]->nRows, aug_rank);
         S[iCone]->rank = new_rank;
 
         REALLOC(&T[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
         // lpRandom(&S[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows * aug_rank);
-        lpRandomDiag(&T[iCone]->matElem[U[iCone]->nRows * old_rank], U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&T[iCone]->matElem[(U[iCone]->nRows+1) * old_rank], U[iCone]->nRows, aug_rank);
         T[iCone]->rank = new_rank;
 
         REALLOC(&M2temp[iCone]->matElem, old_rank * U[iCone]->nRows, new_rank * U[iCone]->nRows);
