@@ -24,7 +24,9 @@ $$
 
 #### Current release:
 
-LoRADS is now under active development and release a pre-built binary (v1.0.0) which reads SDPA (.dat-s) format files, solves the SDP problems. Users testing solvers in Linux can download the binary from **[the release site](https://github.com/COPT-Public/LoRADS/releases/tag/v1.0.0)** 
+Old version: LoRADS is now under active development and release a pre-built binary (v1.0.0) which reads SDPA (.dat-s) format files, solves the SDP problems. Users testing solvers in Linux can download the binary from **[the release site](https://github.com/COPT-Public/LoRADS/releases/tag/v1.0.0)** 
+
+New release 2025.02.13: we now release the complete Lorads code as open source.
 
 
 
