@@ -773,15 +773,15 @@ extern lorads_int CheckAllRankMax(lorads_solver *asolver, double aug_factor)
     return sum_flag == asolver->nCones;
 }
 
-extern void lpRandomDiag(double *data, lorads_int n, lorads_int nRows, lorads_int nCols)
+void lpRandomDiag(double *data, lorads_int nRows, lorads_int nCols)
 {
-    if (n == 0){
+    lorads_int r = LORADS_MIN(nRows, nCols);
+    if (r == 0){
         return;
     }
-    lorads_int r = LORADS_MIN(nRows, nCols);
-    LORADS_ZERO(data, double, n);
+    double val = 1 / sqrt(r);
     for (lorads_int i = 0; i < r; ++i){
-        data[i * nRows + i] = 1 / sqrt(r);
+        data[i * nRows + i] = val;
     }
 }
 
@@ -834,7 +834,7 @@ extern lorads_int AUG_RANK(lorads_solver *ASolver, lorads_int *BlkDims, lorads_i
         LORADS_INIT(ASolver->var->U[iCone]->matElem, double, new_rank * ASolver->var->U[iCone]->nRows);
         LORADS_MEMCPY(ASolver->var->U[iCone]->matElem, dataNewPtrU, double, old_rank * ASolver->var->U[iCone]->nRows);
         LORADS_FREE(dataNewPtrU);
-        lpRandomDiag(&ASolver->var->U[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->U[iCone]->nRows * aug_rank, ASolver->var->U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&ASolver->var->U[iCone]->matElem[(ASolver->var->U[iCone]->nRows+1) * old_rank], ASolver->var->U[iCone]->nRows, aug_rank);
         ASolver->var->U[iCone]->rank = new_rank;
 
         double *dataNewPtrV;
@@ -844,7 +844,7 @@ extern lorads_int AUG_RANK(lorads_solver *ASolver, lorads_int *BlkDims, lorads_i
         LORADS_INIT(ASolver->var->V[iCone]->matElem, double, new_rank * ASolver->var->V[iCone]->nRows);
         LORADS_MEMCPY(ASolver->var->V[iCone]->matElem, dataNewPtrV, double, old_rank * ASolver->var->V[iCone]->nRows);
         LORADS_FREE(dataNewPtrV);
-        lpRandomDiag(&ASolver->var->V[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->V[iCone]->nRows * aug_rank, ASolver->var->V[iCone]->nRows, aug_rank);
+        lpRandomDiag(&ASolver->var->V[iCone]->matElem[(ASolver->var->U[iCone]->nRows+1) * old_rank], ASolver->var->V[iCone]->nRows, aug_rank);
         ASolver->var->V[iCone]->rank = new_rank;
 
         double *dataNewPtrR;
@@ -854,7 +854,7 @@ extern lorads_int AUG_RANK(lorads_solver *ASolver, lorads_int *BlkDims, lorads_i
         LORADS_INIT(ASolver->var->R[iCone]->matElem, double, new_rank * ASolver->var->R[iCone]->nRows);
         LORADS_MEMCPY(ASolver->var->R[iCone]->matElem, dataNewPtrR, double, old_rank * ASolver->var->R[iCone]->nRows);
         LORADS_FREE(dataNewPtrR);
-        lpRandomDiag(&ASolver->var->R[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->U[iCone]->nRows * aug_rank, ASolver->var->U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&ASolver->var->R[iCone]->matElem[(ASolver->var->U[iCone]->nRows+1) * old_rank], ASolver->var->U[iCone]->nRows, aug_rank);
         ASolver->var->R[iCone]->rank = new_rank;
 
         double *dataNewPtrGrad;
@@ -864,7 +864,7 @@ extern lorads_int AUG_RANK(lorads_solver *ASolver, lorads_int *BlkDims, lorads_i
         LORADS_INIT(ASolver->var->Grad[iCone]->matElem, double, new_rank * ASolver->var->Grad[iCone]->nRows);
         LORADS_MEMCPY(ASolver->var->Grad[iCone]->matElem, dataNewPtrGrad, double, old_rank * ASolver->var->Grad[iCone]->nRows);
         LORADS_FREE(dataNewPtrGrad);
-        lpRandomDiag(&ASolver->var->Grad[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->U[iCone]->nRows * aug_rank, ASolver->var->U[iCone]->nRows, aug_rank);
+        lpRandomDiag(&ASolver->var->Grad[iCone]->matElem[(ASolver->var->U[iCone]->nRows+1) * old_rank], ASolver->var->U[iCone]->nRows, aug_rank);
         ASolver->var->Grad[iCone]->rank = new_rank;
 
         double *dataNewPtrM2;
