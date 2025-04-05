@@ -771,7 +771,6 @@ extern void destroyForAuxiDense(void **pA)
     //        LORADS_FREE(dense->rowCol2NnzIdx[i]);
     //    }
     //    LORADS_FREE(dense->rowCol2NnzIdx);
-    LORADS_FREE(dense->fullMat); // fullMat is auxiliary for calculation, not exist in data
     LORADS_FREE(pA);
 }
 
@@ -889,11 +888,9 @@ extern void AConePresolveData(lorads_sdp_cone *ACone, lorads_int Dim)
         sdp_coeff_dense *dataMat;
         LORADS_INIT(dataMat, sdp_coeff_dense, 1);
         dataMat->nSDPCol = w_sum->nSDPCol;
-        LORADS_INIT(dataMat->dsMatElem, double, Dim *(Dim + 1) / 2);
+        LORADS_INIT(dataMat->dsMatElem, double, Dim * Dim);
         LORADS_MEMCHECK(dataMat->dsMatElem);
-        LORADS_ZERO(dataMat->dsMatElem, double, Dim *(Dim + 1) / 2);
-        LORADS_INIT(dataMat->fullMat, double, Dim *Dim);
-        LORADS_MEMCHECK(dataMat->fullMat);
+        LORADS_ZERO(dataMat->dsMatElem, double, Dim * Dim);
         w_sum->dataMat = (void *)dataMat;
         w_sum->mul_rk = dataMatDenseMultiRkMat;
         w_sum->mv = dataMatDenseMV;
@@ -906,11 +903,9 @@ extern void AConePresolveData(lorads_sdp_cone *ACone, lorads_int Dim)
         sdp_coeff_dense *dataMatObj;
         LORADS_INIT(dataMatObj, sdp_coeff_dense, 1);
         dataMatObj->nSDPCol = sdp_obj_sum->nSDPCol;
-        LORADS_INIT(dataMatObj->dsMatElem, double, Dim *(Dim + 1) / 2);
+        LORADS_INIT(dataMatObj->dsMatElem, double, Dim * Dim);
         LORADS_MEMCHECK(dataMatObj->dsMatElem);
-        LORADS_ZERO(dataMatObj->dsMatElem, double, Dim *(Dim + 1) / 2);
-        LORADS_INIT(dataMatObj->fullMat, double, Dim *Dim);
-        LORADS_MEMCHECK(dataMatObj->fullMat);
+        LORADS_ZERO(dataMatObj->dsMatElem, double, Dim * Dim);
         sdp_obj_sum->dataMat = (void *)dataMatObj;
         sdp_obj_sum->mul_rk = dataMatDenseMultiRkMat;
         sdp_obj_sum->mv = dataMatDenseMV;
@@ -923,11 +918,9 @@ extern void AConePresolveData(lorads_sdp_cone *ACone, lorads_int Dim)
         sdp_coeff_dense *slackVarSdp_coeff;
         LORADS_INIT(slackVarSdp_coeff, sdp_coeff_dense, 1);
         slackVarSdp_coeff->nSDPCol = slackVarTemp->nSDPCol;
-        LORADS_INIT(slackVarSdp_coeff->dsMatElem, double, Dim *(Dim + 1) / 2);
+        LORADS_INIT(slackVarSdp_coeff->dsMatElem, double, Dim * Dim);
         LORADS_MEMCHECK(slackVarSdp_coeff->dsMatElem);
-        LORADS_ZERO(slackVarSdp_coeff->dsMatElem, double, Dim *(Dim + 1) / 2);
-        LORADS_INIT(slackVarSdp_coeff->fullMat, double, Dim *Dim);
-        LORADS_MEMCHECK(slackVarSdp_coeff->fullMat);
+        LORADS_ZERO(slackVarSdp_coeff->dsMatElem, double, Dim * Dim);
         slackVarTemp->dataMat = slackVarSdp_coeff;
         slackVarTemp->mul_rk = dataMatDenseMultiRkMat;
         slackVarTemp->mv = dataMatDenseMV;
@@ -935,30 +928,20 @@ extern void AConePresolveData(lorads_sdp_cone *ACone, lorads_int Dim)
         slackVarTemp->zeros = dataMatDenseZeros;
         slackVarTemp->scaleData = dataMatDenseScale;
         ACone->sdp_slack_var = slackVarTemp;
-        lorads_int result_size = Dim * (Dim + 1) / 2;
-        lorads_tuple *result;
-        LORADS_INIT(result, lorads_tuple, result_size);
-        lorads_int rowNum, colNum, count = 0;
+        Dict *dict = create_dict(Dim * (Dim + 1) / 2);
+        lorads_int i = 0;
         for (lorads_int colNum = 0; colNum < Dim; ++colNum)
         {
+            i += colNum;
             for (lorads_int rowNum = colNum; rowNum < Dim; ++rowNum)
             {
-                result[count].i = rowNum;
-                result[count].j = colNum;
-                count++;
+                insert_dict(dict, rowNum, colNum, i++);
             }
-        }
-        LORADS_MEMCHECK(result);
-        Dict *dict = create_dict(result_size);
-        for (lorads_int i = 0; i < result_size; ++i)
-        {
-            insert_dict(dict, result[i].i, result[i].j, i);
         }
 
         ACone->reConstructIndex(ACone->coneData, dict);
 
         free_dict(dict);
-        LORADS_FREE(result);
         return;
     }
 
@@ -1119,25 +1102,20 @@ extern void AConeDenseDetectSparsity(sdp_coeff **sdp_coeff_w_sum_pointer)
     sdp_coeff *sdp_coeff_w_sum = *sdp_coeff_w_sum_pointer;
     sdp_coeff_dense *dense = (sdp_coeff_dense *)sdp_coeff_w_sum->dataMat;
     lorads_int n = dense->nSDPCol;
-    lorads_int row = 0;
-    lorads_int col = 0;
+    lorads_int i = 0;
     lorads_int nnz = 0;
-    for (lorads_int i = 0; i < (n + 1) * n / 2; ++i)
+    for (lorads_int col = 0; col < n; ++col)
     {
-        if (fabs(dense->dsMatElem[i]) > 0.0)
+        i += col;
+        for (lorads_int row = col; row < n; ++row)
         {
-            nnz += 1;
-        }
-        row++;
-        if (row == n)
-        {
-            col++;
-            row = col;
+            if (fabs(dense->dsMatElem[i++]) > 0.0)
+            {
+                nnz += 1;
+            }
         }
     }
     double spRatio = (double)nnz / (double)((n + 1) * n / 2);
-    row = 0;
-    col = 0;
     if (spRatio <= 0.1)
     {
         sdp_coeff_w_sum->dataType = SDP_COEFF_SPARSE;
@@ -1152,27 +1130,24 @@ extern void AConeDenseDetectSparsity(sdp_coeff **sdp_coeff_w_sum_pointer)
         //        for (lorads_int row = 0; row < n; row++)
         //        {
         //            LORADS_INIT(sparse->rowCol2NnzIdx[row], lorads_int, row + 1);
-        //            for (lorads_int i = 0; i < row + 1; ++i)
-        //            {
-        //                sparse->rowCol2NnzIdx[row][i] = -1;
-        //            }
+        //            memset(sparse->rowCol2NnzIdx[row], -1, sizeof(lorads_int) * (row +1));
         //        }
         lorads_int count = 0;
-        for (lorads_int i = 0; i < (n + 1) * n / 2; ++i)
+        lorads_int i = 0;
+        for (lorads_int col = 0; col < n; ++col)
         {
-            if (fabs(dense->dsMatElem[i]) > 0.0)
+            i += col;
+            for (lorads_int row = col; row < n; ++row)
             {
-                sparse->triMatElem[count] = dense->dsMatElem[i];
-                sparse->triMatRow[count] = row;
-                sparse->triMatCol[count] = col;
-                //                sparse->rowCol2NnzIdx[row][col] = count;
-                count++;
-            }
-            row++;
-            if (row == n)
-            {
-                col++;
-                row = col;
+                if (fabs(dense->dsMatElem[i]) > 0.0)
+                {
+                    sparse->triMatElem[count] = dense->dsMatElem[i];
+                    sparse->triMatRow[count] = row;
+                    sparse->triMatCol[count] = col;
+                    //                sparse->rowCol2NnzIdx[row][col] = count;
+                    count++;
+                }
+                ++i;
             }
         }
         LORADS_FREE(dense->dsMatElem);
@@ -1204,8 +1179,6 @@ extern void AConeDenseDetectSparsity(sdp_coeff **sdp_coeff_w_sum_pointer)
         //                count++;
         //            }
         //        }
-        LORADS_INIT(dense->fullMat, double, dense->nSDPCol * dense->nSDPCol);
-        LORADS_MEMCHECK(dense->fullMat);
         sdp_coeff_w_sum->destroy = destroyForAuxiDense;
     }
     *sdp_coeff_w_sum_pointer = sdp_coeff_w_sum;
@@ -1225,7 +1198,6 @@ static void modifySlackVar(sdp_coeff *w_sum, sdp_coeff **slackVarPointer)
         //            LORADS_INIT(denseSlack->rowCol2NnzIdx[i], lorads_int, i + 1);
         //            LORADS_MEMCPY(denseSlack->rowCol2NnzIdx[i], w_sumData->rowCol2NnzIdx[i], lorads_int, i + 1);
         //        }
-        LORADS_INIT(denseSlack->fullMat, double, denseSlack->nSDPCol * denseSlack->nSDPCol);
         slackVar->destroy = destroyForAuxiDense;
         return;
     }

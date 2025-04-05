@@ -80,11 +80,10 @@ typedef struct {
 
 typedef struct {
 
-    /* In a dense matrix, we store an n * (n + 1) / 2 array in packed format */
+    /* In a dense matrix, we store an n^2 array, keeping only the lower triangle */
     lorads_int     nSDPCol;
     double        *dsMatElem;
 //    lorads_int    **rowCol2NnzIdx;
-    double         *fullMat;   // UVt full matrix, not dataMat full version
 } sdp_coeff_dense;
 
 

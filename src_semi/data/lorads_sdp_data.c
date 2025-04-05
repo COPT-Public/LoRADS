@@ -125,10 +125,23 @@ static void dataMatCreateDenseImpl( void **pA, lorads_int nSDPCol, lorads_int da
     LORADS_MEMCHECK(dense);
 
     dense->nSDPCol = nSDPCol;
-    LORADS_INIT(dense->dsMatElem, double, PACK_NNZ(nSDPCol));
+    LORADS_INIT(dense->dsMatElem, double, nSDPCol * nSDPCol);
     LORADS_MEMCHECK(dense->dsMatElem);
 
-    pds_decompress(dataMatNnz, dataMatIdx, dataMatElem, dense->dsMatElem);
+    // decompress general dense matrix
+    for ( lorads_int k = 0; k < dataMatNnz; ++k ) {
+        lorads_int packed_idx = dataMatIdx[k];
+        // find out where this is in the full matrix
+        lorads_int full_idx = 0;
+        lorads_int colsize = nSDPCol;
+        while (packed_idx >= colsize) {
+            full_idx += nSDPCol +1;
+            packed_idx -= colsize--;
+        }
+        full_idx += packed_idx;
+        dense->dsMatElem[full_idx] = dataMatElem[k];
+    }
+
     *pA = (void *) dense;
 }
 
@@ -229,11 +242,11 @@ static void dataMatDenseNrm1(void *A, double *res){
     double nrmA = 0.0;
     lorads_int nElem = dsA->nSDPCol * (dsA->nSDPCol + 1) / 2;
     lorads_int colLen; ///< Exclude diagonal
-    double colNrm; ///< Exclude diagonal
     double *p = dsA->dsMatElem;
     lorads_int nCol = dsA->nSDPCol;
     lorads_int incx = 1;
     for ( lorads_int i = 0; i < nCol; ++i ) {
+        p += i;
         nrmA += fabs(p[0]);
         colLen = nCol - i - 1;
         nrmA += nrm1(&colLen, p + 1, &incx) * 2;
@@ -248,9 +261,9 @@ static void dataMatDenseNrm2Square(void *A, double *res){
     lorads_int nCol = dsA->nSDPCol;
     lorads_int incx = 1;
     lorads_int colLen; ///< Exclude diagonal
-    double colNrm; ///< Exclude diagonal
     double *p = dsA->dsMatElem;
     for ( lorads_int i = 0; i < nCol; ++i ) {
+        p += i;
         nrmA += pow(p[0], 2);
         colLen = nCol - i - 1;
         nrmA += pow(nrm2(&colLen, p + 1, &incx), 2) * 2;
@@ -262,25 +275,28 @@ static void dataMatDenseNrm2Square(void *A, double *res){
 
 static void dataMatDenseNrmInf(void *A, double *res){
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
-    lorads_int nElem = dsA->nSDPCol * (dsA->nSDPCol + 1) / 2;
+    lorads_int nCol = dsA->nSDPCol;
     double *p = dsA->dsMatElem;
     res[0] = 0;
-    for (lorads_int i = 0; i < nElem; ++i ){
-        res[0] =  LORADS_MAX(res[0],  LORADS_ABS(p[i]));
+    for (lorads_int col = 0; col < nCol; ++col ) {
+        for (lorads_int row = col; row < nCol; ++row ){
+            res[0] =  LORADS_MAX(res[0],  LORADS_ABS(p[row]));
+        }
+        p += nCol;
     }
     return;
 }
 
 extern void dataMatDenseZeros(void *A){
     sdp_coeff_dense *dsA = (sdp_coeff_dense *) A;
-    LORADS_ZERO(dsA->dsMatElem, double, dsA->nSDPCol * (dsA->nSDPCol + 1) / 2);
+    LORADS_ZERO(dsA->dsMatElem, double, dsA->nSDPCol * dsA->nSDPCol);
 }
 
 
 extern void dataMatDenseScale(void *A, double scaleFactor){
     // A = A * scaleFactor
     sdp_coeff_dense *dense = (sdp_coeff_dense *)A;
-    lorads_int n = dense->nSDPCol * (dense->nSDPCol + 1) / 2;
+    lorads_int n = dense->nSDPCol * dense->nSDPCol;
     scal(&n, &scaleFactor, dense->dsMatElem, &AIntConstantOne);
 }
 
@@ -596,7 +612,7 @@ static void dataMatSparseAddDenseSDPCoeff(void *A, void *B, double weight){
             lorads_int row = sparse->triMatRow[i];
             lorads_int col = sparse->triMatCol[i];
             if (row >= col){
-                dense->dsMatElem[(n * col -col*(col+1)/2 + row)] += weight * sparse->triMatElem[i];
+                dense->dsMatElem[n * col + row] += weight * sparse->triMatElem[i];
             }
         }
     }else{
@@ -606,8 +622,7 @@ static void dataMatSparseAddDenseSDPCoeff(void *A, void *B, double weight){
             col = sparse->triMatCol[i];
             assert(row >= col);
 //            idx = dense->rowCol2NnzIdx[row][col];
-            idx = sparse->nnzIdx2ResIdx[i];
-            assert(idx != -1);
+            idx = n * col + row;
             dense->dsMatElem[idx] += weight * sparse->triMatElem[i];
         }
     }
@@ -650,23 +665,14 @@ extern void dataMatDenseMultiRkMat(void *A, lorads_sdp_dense *X, double *AX){
     sdp_coeff_dense *dense = (sdp_coeff_dense *) A;
     double alpha = 1.0;
     double beta = 0.0;
-    LORADS_ZERO(dense->fullMat, double, dense->nSDPCol * dense->nSDPCol);
-    lorads_int idx = 0;
-    for (lorads_int col = 0; col < dense->nSDPCol; ++col){
-        for (lorads_int row = col; row < dense->nSDPCol; ++row){
-            dense->fullMat[dense->nSDPCol * col + row] = dense->dsMatElem[idx];
-            dense->fullMat[dense->nSDPCol * row + col] = dense->dsMatElem[idx];
-            idx++;
-        }
-    }
     char side = 'L'; // C:= alpha * A * B + beta * C;
     char uplo = 'L';
     lorads_int m = dense->nSDPCol;
     lorads_int n = X->rank;
 #ifdef UNDER_BLAS
-    dsymm_(&side, &uplo, &m, &n, &alpha, dense->fullMat, &m, X->matElem, &m, &beta, AX, &m );
+    dsymm_(&side, &uplo, &m, &n, &alpha, dense->dsMatElem, &m, X->matElem, &m, &beta, AX, &m );
 #else
-    dsymm(&side, &uplo, &m, &n, &alpha, dense->fullMat, &m, X->matElem, &m, &beta, AX, &m );
+    dsymm(&side, &uplo, &m, &n, &alpha, dense->dsMatElem, &m, X->matElem, &m, &beta, AX, &m );
 #endif
 }
 
@@ -674,24 +680,15 @@ extern void dataMatDenseMV(void *A, double *x, double *y, lorads_int n){
     sdp_coeff_dense *dense = (sdp_coeff_dense *) A;
     double alpha = 1.0;
     double beta = 0.0;
-    LORADS_ZERO(dense->fullMat, double, dense->nSDPCol * dense->nSDPCol);
-    lorads_int idx = 0;
-    for (lorads_int col = 0; col < dense->nSDPCol; ++col){
-        for (lorads_int row = col; row < dense->nSDPCol; ++row){
-            dense->fullMat[dense->nSDPCol * col + row] = dense->dsMatElem[idx];
-            dense->fullMat[dense->nSDPCol * row + col] = dense->dsMatElem[idx];
-            idx++;
-        }
-    }
     lorads_int m = dense->nSDPCol;
     assert(n == m);
     char side = 'L'; // C:= alpha * A * B + beta * C;
     char uplo = 'L';
     lorads_int k = 1;
 #ifdef UNDER_BLAS
-    dsymm_(&side, &uplo, &m, &k, &alpha, dense->fullMat, &m, x, &m, &beta, y, &m );
+    dsymm_(&side, &uplo, &m, &k, &alpha, dense->dsMatElem, &m, x, &m, &beta, y, &m );
 #else
-    dsymm(&side, &uplo, &m, &k, &alpha, dense->fullMat, &m, x, &m, &beta, y, &m );
+    dsymm(&side, &uplo, &m, &k, &alpha, dense->dsMatElem, &m, x, &m, &beta, y, &m );
 #endif
 }
 
@@ -699,28 +696,37 @@ static void dataMatDenseMultiRkMatInnerProRkMat(void *A, lorads_sdp_dense *U, lo
     /* res = <AU, V>
      dense A, dense U, dense V
      */
-    res[0] = 0.0;
     sdp_coeff_dense *dense = (sdp_coeff_dense *) A;
-    lorads_int n = 0;
-    lorads_int incx = 1;
     sdp_coeff_dense *UVt = (sdp_coeff_dense *)UVtIn;
-    n = UVt->nSDPCol * (UVt->nSDPCol + 1) / 2;
-    res[0] += 2 * dot(&n, dense->dsMatElem, &incx, UVt->dsMatElem, &incx);
-    lorads_int idx = 0; lorads_int colNum = UVt->nSDPCol;
-    for (lorads_int i = 0; i < UVt->nSDPCol; ++i){
-        res[0] -= dense->dsMatElem[idx] * UVt->dsMatElem[idx];
-        idx += colNum;
-        colNum -= 1;
+    lorads_int dim = UVt->nSDPCol;
+    lorads_int incx = 1;
+    double *denseData = dense->dsMatElem;
+    double *UVtdata = UVt->dsMatElem;
+    double result = 0.0;
+    for (lorads_int n = dim -1; n > 0; --n) {
+        result += *denseData * *UVtdata;
+        ++denseData;
+        ++UVtdata;
+        result += 2 * dot(&n, denseData, &incx, UVtdata, &incx);
+        denseData += dim;
+        UVtdata += dim;
     }
+    res[0] = result + *denseData * *UVtdata;
 }
 
 static void dataMatDenseAddDenseSDPCoeff(void *A, void *B, double weight){
     // B += A * weight
     sdp_coeff_dense *denseA = (sdp_coeff_dense *) A;
     sdp_coeff_dense *denseB = (sdp_coeff_dense *) B;
-    lorads_int n = denseA->nSDPCol * (denseA->nSDPCol + 1) / 2;
+    lorads_int dim = denseA->nSDPCol;
     lorads_int incx = 1;
-    axpy(&n, &weight, denseA->dsMatElem, &incx, denseB->dsMatElem, &incx);
+    double *denseAdata = denseA->dsMatElem;
+    double *denseBdata = denseB->dsMatElem;
+    for (lorads_int n = dim; n > 0; --n) {
+        axpy(&n, &weight, denseAdata, &incx, denseBdata, &incx);
+        denseAdata += dim +1;
+        denseBdata += dim +1;
+    }
 }
 
 static void dataMatDenseAddSDPCoeff(void *A, void *B, double weight, sdp_coeff_type B_type){

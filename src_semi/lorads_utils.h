@@ -19,7 +19,6 @@
         }                 \
     } while (0)
 #define LORADS_INIT(var, type, size) (var) = (type *)calloc(size, sizeof(type))
-#define LORADS_REALLOC(var, type, size) (var) = (type *)realloc(var, sizeof(type) * (size))
 #define LORADS_MEMCPY(dst, src, type, size) memcpy(dst, src, sizeof(type) * (size))
 #define LORADS_ZERO(var, type, size) memset(var, 0, sizeof(type) * (size))
 #define LORADS_NULLCHECK(var)            \
@@ -44,7 +43,6 @@
 #define PACK_NNZ(n) ((n) * ((n) + 1) / 2)
 #define PACK_IDX(n, i, j) (lorads_int)((2 * (n) - (j)-1) * (j) / 2) + (i)
 #define FULL_IDX(n, i, j) ((j) * (n) + (i))
-#define PACK_ENTRY(A, n, i, j) (A[(lorads_int)((2 * (n) - (j)-1) * (j) / 2) + (i)])
 #define FULL_ENTRY(A, n, i, j) (A[(j) * (n) + (i)])
 
 #ifdef __cplusplus
