@@ -827,54 +827,58 @@ extern lorads_int AUG_RANK(lorads_solver *ASolver, lorads_int *BlkDims, lorads_i
             printinfo_aug(iCone);
         }
 
-        double *dataNewPtrU;
-        LORADS_INIT(dataNewPtrU, double, new_rank * ASolver->var->U[iCone]->nRows);
-        LORADS_MEMCPY(dataNewPtrU, ASolver->var->U[iCone]->matElem, double, old_rank * ASolver->var->U[iCone]->nRows);
+        double *dataTmp;
+        LORADS_INIT(dataTmp, double, old_rank * ASolver->var->U[iCone]->nRows);
+
+        LORADS_MEMCPY(dataTmp, ASolver->var->U[iCone]->matElem, double, old_rank * ASolver->var->U[iCone]->nRows);
         LORADS_FREE(ASolver->var->U[iCone]->matElem);
         LORADS_INIT(ASolver->var->U[iCone]->matElem, double, new_rank * ASolver->var->U[iCone]->nRows);
-        LORADS_MEMCPY(ASolver->var->U[iCone]->matElem, dataNewPtrU, double, old_rank * ASolver->var->U[iCone]->nRows);
-        LORADS_FREE(dataNewPtrU);
+        LORADS_MEMCPY(ASolver->var->U[iCone]->matElem, dataTmp, double, old_rank * ASolver->var->U[iCone]->nRows);
         lpRandomDiag(&ASolver->var->U[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->U[iCone]->nRows * aug_rank, ASolver->var->U[iCone]->nRows, aug_rank);
         ASolver->var->U[iCone]->rank = new_rank;
 
-        double *dataNewPtrV;
-        LORADS_INIT(dataNewPtrV, double, new_rank * ASolver->var->V[iCone]->nRows);
-        LORADS_MEMCPY(dataNewPtrV, ASolver->var->V[iCone]->matElem, double, old_rank * ASolver->var->V[iCone]->nRows);
+        assert(ASolver->var->U[iCone]->nRows == ASolver->var->V[iCone]->nRows);
+        LORADS_MEMCPY(dataTmp, ASolver->var->V[iCone]->matElem, double, old_rank * ASolver->var->V[iCone]->nRows);
         LORADS_FREE(ASolver->var->V[iCone]->matElem);
         LORADS_INIT(ASolver->var->V[iCone]->matElem, double, new_rank * ASolver->var->V[iCone]->nRows);
-        LORADS_MEMCPY(ASolver->var->V[iCone]->matElem, dataNewPtrV, double, old_rank * ASolver->var->V[iCone]->nRows);
-        LORADS_FREE(dataNewPtrV);
+        LORADS_MEMCPY(ASolver->var->V[iCone]->matElem, dataTmp, double, old_rank * ASolver->var->V[iCone]->nRows);
         lpRandomDiag(&ASolver->var->V[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->V[iCone]->nRows * aug_rank, ASolver->var->V[iCone]->nRows, aug_rank);
         ASolver->var->V[iCone]->rank = new_rank;
 
-        double *dataNewPtrR;
-        LORADS_INIT(dataNewPtrR, double, new_rank * ASolver->var->R[iCone]->nRows);
-        LORADS_MEMCPY(dataNewPtrR, ASolver->var->R[iCone]->matElem, double, old_rank * ASolver->var->R[iCone]->nRows);
+        #ifdef DUAL_U_V
+        assert(ASolver->var->U[iCone]->nRows == ASolver->var->S[iCone]->nRows);
+        LORADS_MEMCPY(dataTmp, ASolver->var->S[iCone]->matElem, double, old_rank * ASolver->var->S[iCone]->nRows);
+        LORADS_FREE(ASolver->var->S[iCone]->matElem);
+        LORADS_INIT(ASolver->var->S[iCone]->matElem, double, new_rank * ASolver->var->S[iCone]->nRows);
+        LORADS_MEMCPY(ASolver->var->S[iCone]->matElem, dataTmp, double, old_rank * ASolver->var->S[iCone]->nRows);
+        lpRandomDiag(&ASolver->var->S[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->S[iCone]->nRows * aug_rank, ASolver->var->S[iCone]->nRows, aug_rank);
+        ASolver->var->S[iCone]->rank = new_rank;
+        #endif
+
+        assert(ASolver->var->U[iCone]->nRows == ASolver->var->R[iCone]->nRows);
+        LORADS_MEMCPY(dataTmp, ASolver->var->R[iCone]->matElem, double, old_rank * ASolver->var->R[iCone]->nRows);
         LORADS_FREE(ASolver->var->R[iCone]->matElem);
         LORADS_INIT(ASolver->var->R[iCone]->matElem, double, new_rank * ASolver->var->R[iCone]->nRows);
-        LORADS_MEMCPY(ASolver->var->R[iCone]->matElem, dataNewPtrR, double, old_rank * ASolver->var->R[iCone]->nRows);
-        LORADS_FREE(dataNewPtrR);
+        LORADS_MEMCPY(ASolver->var->R[iCone]->matElem, dataTmp, double, old_rank * ASolver->var->R[iCone]->nRows);
         lpRandomDiag(&ASolver->var->R[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->U[iCone]->nRows * aug_rank, ASolver->var->U[iCone]->nRows, aug_rank);
         ASolver->var->R[iCone]->rank = new_rank;
 
-        double *dataNewPtrGrad;
-        LORADS_INIT(dataNewPtrGrad, double, new_rank * ASolver->var->Grad[iCone]->nRows);
-        LORADS_MEMCPY(dataNewPtrGrad, ASolver->var->Grad[iCone]->matElem, double, old_rank * ASolver->var->Grad[iCone]->nRows);
+        assert(ASolver->var->U[iCone]->nRows == ASolver->var->Grad[iCone]->nRows);
+        LORADS_MEMCPY(dataTmp, ASolver->var->Grad[iCone]->matElem, double, old_rank * ASolver->var->Grad[iCone]->nRows);
         LORADS_FREE(ASolver->var->Grad[iCone]->matElem);
         LORADS_INIT(ASolver->var->Grad[iCone]->matElem, double, new_rank * ASolver->var->Grad[iCone]->nRows);
-        LORADS_MEMCPY(ASolver->var->Grad[iCone]->matElem, dataNewPtrGrad, double, old_rank * ASolver->var->Grad[iCone]->nRows);
-        LORADS_FREE(dataNewPtrGrad);
+        LORADS_MEMCPY(ASolver->var->Grad[iCone]->matElem, dataTmp, double, old_rank * ASolver->var->Grad[iCone]->nRows);
         lpRandomDiag(&ASolver->var->Grad[iCone]->matElem[ASolver->var->U[iCone]->nRows * old_rank], ASolver->var->U[iCone]->nRows * aug_rank, ASolver->var->U[iCone]->nRows, aug_rank);
         ASolver->var->Grad[iCone]->rank = new_rank;
 
-        double *dataNewPtrM2;
-        LORADS_INIT(dataNewPtrM2, double, new_rank * ASolver->var->M2temp[iCone]->nRows);
-        LORADS_MEMCPY(dataNewPtrM2, ASolver->var->M2temp[iCone]->matElem, double, old_rank * ASolver->var->M2temp[iCone]->nRows);
+        assert(ASolver->var->U[iCone]->nRows == ASolver->var->M2temp[iCone]->nRows);
+        LORADS_MEMCPY(dataTmp, ASolver->var->M2temp[iCone]->matElem, double, old_rank * ASolver->var->M2temp[iCone]->nRows);
         LORADS_FREE(ASolver->var->M2temp[iCone]->matElem);
         LORADS_INIT(ASolver->var->M2temp[iCone]->matElem, double, new_rank * ASolver->var->M2temp[iCone]->nRows);
-        LORADS_MEMCPY(ASolver->var->M2temp[iCone]->matElem, dataNewPtrM2, double, old_rank * ASolver->var->M2temp[iCone]->nRows);
-        LORADS_FREE(dataNewPtrM2);
+        LORADS_MEMCPY(ASolver->var->M2temp[iCone]->matElem, dataTmp, double, old_rank * ASolver->var->M2temp[iCone]->nRows);
         ASolver->var->M2temp[iCone]->rank = new_rank;
+
+        LORADS_FREE(dataTmp);
 
         allElem += ASolver->var->V[iCone]->rank * ASolver->var->V[iCone]->nRows;
         LORADS_FREE(ASolver->var->bLinSys[iCone]);
